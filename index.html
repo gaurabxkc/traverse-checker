@@ -90,10 +90,13 @@ tr.badrow td{background:var(--badbg)}
 .toast.show{transform:translateX(-50%) translateY(0)}
 .toast.bad{background:var(--bad)}
 .hidden{display:none}
+.gstep{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}.gstep:last-child{border-bottom:0}
+.gn{flex:none;width:30px;height:30px;border-radius:50%;background:var(--hero);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px}
+.gstep b{font-weight:800}.glist{margin:0;padding-left:20px;font-size:15px}.glist li{margin:6px 0}
 </style>
 </head>
 <body>
-<header><h1 id="title">Major Traverse</h1><button id="homeBtn" class="hidden">◀ All</button></header>
+<header><h1 id="title">Major Traverse</h1><button id="guideBtn">Guide</button><button id="homeBtn" class="hidden">◀ All</button></header>
 <main id="app"></main>
 <input type="file" id="fileIn" accept=".json,application/json" class="hidden">
 <script>
@@ -172,14 +175,14 @@ function summary(){
 }
 
 /* ===== UI ===== */
-const app=document.getElementById("app"),title=document.getElementById("title"),homeBtn=document.getElementById("homeBtn");
+const app=document.getElementById("app"),title=document.getElementById("title"),homeBtn=document.getElementById("homeBtn"),guideBtn=document.getElementById("guideBtn");
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const pill=(state,txt)=>`<span class="pill ${state}">${txt}</span>`;
 function precTxt(p){return p===Infinity?"1/∞":"1/"+Math.round(p)}
 let cur=null,lastStatus=null;
-homeBtn.onclick=()=>{location.hash=""};
+homeBtn.onclick=()=>{location.hash=""};guideBtn.onclick=()=>{location.hash="guide"};
 window.addEventListener("hashchange",route);
-function route(){const h=decodeURIComponent(location.hash.slice(1));cur=ST.includes(h)?h:null;lastStatus=null;cur?renderStation(cur):renderHome();window.scrollTo(0,0)}
+function route(){const h=decodeURIComponent(location.hash.slice(1));cur=ST.includes(h)?h:null;lastStatus=null;guideBtn.classList.remove("hidden");cur?renderStation(cur):h==="guide"?renderGuide():renderHome();window.scrollTo(0,0)}
 function toast(msg,bad){let t=document.querySelector(".toast");if(!t){t=document.createElement("div");t.className="toast";document.body.appendChild(t)}
   t.textContent=msg;t.classList.toggle("bad",!!bad);requestAnimationFrame(()=>t.classList.add("show"));clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),2600);
   if(navigator.vibrate)navigator.vibrate(bad?[200,80,200,80,200]:[60,40,60])}
@@ -204,6 +207,66 @@ function motto(S){const d=S.done.length,left=N-d;
   if(d<N/2)return[d+" down, "+left+" to go","Steady pace beats rushing."];
   if(left>3)return["Past halfway","Only "+left+" stations left."];
   return["Final stretch",left+" more and the loop closes."]}
+
+function renderGuide(){
+  title.innerHTML="How to observe<small>Total station · major traverse</small>";homeBtn.classList.remove("hidden");guideBtn.classList.add("hidden");
+  const step=(n,h,b)=>`<div class="gstep"><div class="gn">${n}</div><div><b>${h}</b><div>${b}</div></div></div>`;
+  app.innerHTML=`
+  <div class="card"><h2>1 · Set up over the peg</h2>
+    ${step(1,"Tripod","Legs spread over the peg, head roughly level, chest height. Press the legs firmly into the ground.")}
+    ${step(2,"Centre","Look through the optical/laser plummet. Turn the <b>foot screws</b> until the dot is on the peg nail.")}
+    ${step(3,"Rough level","Adjust <b>tripod leg lengths</b> to centre the circular bubble. The plummet dot stays on the peg.")}
+    ${step(4,"Fine level","Two foot screws in opposite directions, rotate 90°, then the third screw. Use the plate bubble or the electronic level.")}
+    ${step(5,"Recheck","Dot drifted? Loosen the centre screw, <b>slide</b> (don't rotate) the instrument on the head, re-level. Repeat until centred and level.")}
+    ${step(6,"HI","Measure instrument height with tape and book it.")}
+  </div>
+  <div class="card"><h2>2 · Settings (once a day)</h2>
+    <div class="row"><span>Angle direction</span><b>HR (turn right)</b></div>
+    <div class="row"><span>Distance mode</span><b>HD, not SD</b></div>
+    <div class="row"><span>Prism constant</span><b>match the prism</b></div>
+    <div class="row"><span>Temp / pressure</span><b>enter if asked</b></div>
+  </div>
+  <div class="card"><h2>3 · One set (app order)</h2>
+    ${step(1,"FL → BS","Telescope face left. Sight BS low on the pole. <b>0SET</b> → 0°00′00″ (Set II: <b>HSET 90°00′00″</b>). Measure HD to BS.")}
+    ${step(2,"FL → FS","Turn <b>clockwise</b> to FS, read the angle. Measure <b>HD</b> to FS.")}
+    ${step(3,"Change face","Plunge the telescope over the top and swing 180°. Now face right.")}
+    ${step(4,"FR → FS","Sight FS again, read. Should be FL reading + 180°.")}
+    ${step(5,"FR → BS","Sight BS, read. Should be ≈ 180° (Set II ≈ 270°).")}
+    <p class="note">Set I starts at 0°, Set II at 90°, so the two sets use different parts of the circle.</p>
+  </div>
+  <div class="card"><h2>4 · Limits (from the guidelines)</h2>
+    <div class="row"><span>FR − FL, same target</span><b>180° ± 20″</b></div>
+    <div class="row"><span>Set I mean vs Set II mean</span><b>≤ 1′</b></div>
+    <div class="row"><span>FW vs BW distance (EDM)</span><b>≥ 1 : 5000</b></div>
+    <div class="row"><span>e.g. 80 m leg</span><b>Δ ≤ 16 mm</b></div>
+    <div class="row"><span>Max : min leg</span><b>≤ 2 : 1</b></div>
+    <div class="row"><span>Angular closure, N = 18</span><b>±30″√N = ±127″</b></div>
+    <div class="row"><span>Interior sum, N = 18</span><b>2880°</b></div>
+    <div class="row"><span>Linear closure (evening, Gale table)</span><b>≥ 1 : 5000</b></div>
+  </div>
+  <div class="card"><h2>5 · Before you pack up</h2>
+    ${step("✓","Green banner","App shows “passed all checks”.")}
+    ${step("✎","Reference sketch","Tie the peg to 2–3 permanent objects (wall corner, pole, tree) with tape distances. Booking format 1.")}
+    ${step("⇩","Backup","Every few stations: Save backup on the home screen.")}
+  </div>
+  <div class="card"><h2>Team roles</h2>
+    <div class="row"><span>Instrument</span><b>sights, reads aloud</b></div>
+    <div class="row"><span>Booker</span><b>field book, ball pen, reads back</b></div>
+    <div class="row"><span>App</span><b>types, calls pass / re-check</b></div>
+    <div class="row"><span>2 × prism</span><b>BS and FS, bubble centred</b></div>
+  </div>
+  <div class="card"><h2>Common mistakes</h2>
+    <ul class="glist">
+      <li>Sighting the top of a tilted prism pole: aim low.</li>
+      <li>Bumping the tripod between faces: recheck the bubble before Set II.</li>
+      <li>Not re-zeroing to 90° for Set II.</li>
+      <li>Booking SD instead of HD: check the display label.</li>
+      <li>Wrong target: agree hand signals with prism holders (crowd tomorrow).</li>
+      <li>Correcting data: strike once, write the new value above. Never overwrite.</li>
+    </ul>
+  </div>
+  <div class="nav"><button class="btn pri" onclick="location.hash=''">All stations</button></div>`;
+}
 
 function renderHome(){
   title.innerHTML="Major Traverse<small>Group 07 · CP1 → M16 → CP1</small>";homeBtn.classList.add("hidden");
