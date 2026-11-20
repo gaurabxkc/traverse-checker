@@ -199,13 +199,13 @@ function ring(done){const r=50,C=2*Math.PI*r,f=done/N;
   <div class="n">${done}<small>of ${N}</small></div></div>`}
 function motto(S){const d=S.done.length,left=N-d;
   if(S.err!=null)return Math.abs(S.err)<=S.perm?["Traverse closed","Error "+S.err+"″ within ±"+Math.round(S.perm)+"″. Brilliant work."]:["All observed","Closing error "+S.err+"″ exceeds ±"+Math.round(S.perm)+"″. Find the bad station."];
-  if(d===0)return["Let's go, Group 09",N+" stations to conquer today."];
+  if(d===0)return["Let's go, Group 07",N+" stations to conquer today."];
   if(d<N/2)return[d+" down, "+left+" to go","Steady pace beats rushing."];
   if(left>3)return["Past halfway","Only "+left+" stations left."];
   return["Final stretch",left+" more and the loop closes."]}
 
 function renderHome(){
-  title.innerHTML="Major Traverse<small>Group 09 · CP1 → M16 → CP1</small>";homeBtn.classList.add("hidden");
+  title.innerHTML="Major Traverse<small>Group 07 · CP1 → M16 → CP1</small>";homeBtn.classList.add("hidden");
   const S=summary(),[h3,p]=motto(S);
   const bad=ST.map(s=>[s,issues(s)]).filter(x=>x[1].length);
   const ratioBad=S.ratio!=null&&S.ratio>LIM.ratio,angBad=S.err!=null&&Math.abs(S.err)>S.perm;
