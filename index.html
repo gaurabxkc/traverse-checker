@@ -105,6 +105,7 @@ const KEY = "trav-major-v1";
 const LIM = {face:20, sets:60, prec:5000, ratio:2, angK:30}; // seconds, seconds, 1:x, max:min, 30"√n
 const bsOf = i => ST[(i-1+N)%N], fsOf = i => ST[(i+1)%N];
 const OBS = [["bsL","FL","BS"],["fsL","FL","FS"],["bsR","FR","BS"],["fsR","FR","FS"]]; // template row order
+const OBS_FIELD = [["bsL","FL","BS"],["fsL","FL","FS"],["fsR","FR","FS"],["bsR","FR","BS"]]; // field work order: FL BS→FS, change face, FR FS→BS
 
 /* ===== Storage (autosave on every keystroke) ===== */
 function blank(){const o={};for(const s of ST)o[s]={sets:[{},{}],dBS:"",dFS:"",note:""};return o}
@@ -261,7 +262,7 @@ function renderStation(s){
   const i=ST.indexOf(s),st=D[s],bs=bsOf(i),fs=fsOf(i);
   title.innerHTML=`Station ${s}<small>${i+1} of ${N} · interior, clockwise</small>`;homeBtn.classList.remove("hidden");
   const setCard=si=>`<div class="card"><h2>Set ${si===0?"I":"II"}</h2>
-    ${OBS.map(([k,face,t])=>`<div class="obs" id="o${si}${k}"><label><b>${face}</b> → ${t==="BS"?bs:fs} <small>${t}</small></label>${dmsHTML(si,k,st.sets[si][k])}</div>`).join("")}
+    ${OBS_FIELD.map(([k,face,t],j)=>`<div class="obs" id="o${si}${k}"><label><small>${j+1}.</small> <b>${face}</b> → ${t==="BS"?bs:fs} <small>${t}</small></label>${dmsHTML(si,k,st.sets[si][k])}</div>`).join("")}
     <div id="res${si}" style="margin-top:8px"></div></div>`;
   app.innerHTML=`
   <div id="banner"></div>
