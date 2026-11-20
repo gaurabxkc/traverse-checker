@@ -93,6 +93,8 @@ tr.badrow td{background:var(--badbg)}
 .toast.show{transform:translateX(-50%) translateY(0)}
 .toast.bad{background:var(--bad)}
 .hidden{display:none}
+body.sysfont{font-family:system-ui,Roboto,"Segoe UI",sans-serif}
+.seg{display:flex;background:var(--bg2);border-radius:14px;padding:4px;gap:4px}.seg button{flex:1;border:0;background:transparent;color:var(--mut);padding:10px;border-radius:10px;font-weight:800;font-size:15px}.seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
 .gstep{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}.gstep:last-child{border-bottom:0}
 .gn{flex:none;width:30px;height:30px;border-radius:50%;background:var(--hero);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px}
 .gstep b{font-weight:800}.glist{margin:0;padding-left:20px;font-size:15px}.glist li{margin:6px 0}
@@ -271,6 +273,9 @@ function renderGuide(){
   <div class="nav"><button class="btn pri" onclick="location.hash=''">All stations</button></div>`;
 }
 
+function sysFont(){try{return localStorage.getItem("trav-font")==="system"}catch(e){return false}}
+function applyFont(){document.body.classList.toggle("sysfont",sysFont())}
+function setFont(sys){try{localStorage.setItem("trav-font",sys?"system":"app")}catch(e){}applyFont();renderHome()}
 function renderHome(){
   title.innerHTML="Major Traverse<small>Group 07 · CP1 → M16 → CP1</small>";homeBtn.classList.add("hidden");
   const S=summary(),[h3,p]=motto(S);
@@ -306,6 +311,8 @@ function renderHome(){
   <div class="card"><h2>Legs · horizontal distance (m)</h2>
     <table><tr><th>Leg</th><th>FW</th><th>BW</th><th>Precision</th></tr>${legRows}</table>
     <p class="note">FW measured at the first station, BW measured back from the second.</p></div>
+  <div class="card"><h2>Font</h2>
+    <div class="seg"><button class="${sysFont()?"":"on"}" onclick="setFont(false)">App (Inter)</button><button class="${sysFont()?"on":""}" style="font-family:system-ui,Roboto,sans-serif" onclick="setFont(true)">System</button></div></div>
   <div class="card"><h2>Data safety</h2>
     <div class="btns">
       <button class="btn pri" onclick="backup()">Save backup</button>
@@ -433,7 +440,7 @@ function exportCSV(){
   download(blobFile(text,`traverse-excel-${stamp()}.csv`,"text/csv"));
 }
 if("serviceWorker"in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js");
-route();
+applyFont();route();
 </script>
 </body>
 </html>
