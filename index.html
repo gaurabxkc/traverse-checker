@@ -3,53 +3,92 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#14532d">
+<meta name="theme-color" content="#0f766e">
 <title>Traverse Checker</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <style>
-:root{--bg:#f6f7f5;--card:#fff;--ink:#111;--mut:#5b6360;--line:#cfd5d2;--ok:#15803d;--okbg:#dcfce7;--bad:#b91c1c;--badbg:#fee2e2;--part:#a16207;--partbg:#fef3c7;--acc:#14532d}
-@media (prefers-color-scheme:dark){:root{--bg:#0f1311;--card:#1a201d;--ink:#eef2ef;--mut:#9aa5a0;--line:#33403a;--ok:#4ade80;--okbg:#14301f;--bad:#f87171;--badbg:#3a1616;--part:#fbbf24;--partbg:#3a2d0c;--acc:#86efac}}
+:root{--bg:#f3f5f2;--bg2:#e8ece7;--card:#ffffff;--ink:#0d1512;--mut:#5d6964;--line:#dbe2dd;--acc:#0f766e;--acc2:#14b8a6;--gold:#d4a017;
+--ok:#047857;--okbg:#d1fae5;--bad:#dc2626;--badbg:#fee2e2;--part:#b45309;--partbg:#fef3c7;--shadow:0 1px 2px rgba(0,0,0,.05),0 8px 24px rgba(15,60,50,.08);
+--hero:linear-gradient(135deg,#0b3d36 0%,#0f766e 55%,#14b8a6 100%);--input:#f6f8f6}
+@media (prefers-color-scheme:dark){:root{--bg:#070b0a;--bg2:#0d1412;--card:#111a17;--ink:#ecf3ef;--mut:#8fa29a;--line:#1f2b27;--acc:#2dd4bf;--acc2:#5eead4;--gold:#facc15;
+--ok:#34d399;--okbg:#06281c;--bad:#f87171;--badbg:#2c0b0b;--part:#fbbf24;--partbg:#2a1d05;--shadow:0 1px 0 rgba(255,255,255,.03) inset,0 10px 30px rgba(0,0,0,.45);
+--hero:linear-gradient(135deg,#042f2a 0%,#0b5e56 55%,#0f9488 100%);--input:#0b1310}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 system-ui,-apple-system,Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
-header{position:sticky;top:0;z-index:5;background:var(--acc);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px}
-@media (prefers-color-scheme:dark){header{color:#06240f}}
-header h1{font-size:18px;margin:0;flex:1}
-header button{background:transparent;border:1px solid currentColor;color:inherit;border-radius:8px;padding:6px 10px;font-size:15px}
-main{max-width:640px;margin:0 auto;padding:12px 12px 80px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
-.card h2{font-size:16px;margin:0 0 8px}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.tile{border:2px solid var(--line);border-radius:10px;padding:12px 4px;text-align:center;font-weight:700;font-size:18px;background:var(--card);color:var(--ink)}
-.tile small{display:block;font-weight:400;font-size:12px;color:var(--mut)}
-.tile.ok{border-color:var(--ok);background:var(--okbg)}
-.tile.bad{border-color:var(--bad);background:var(--badbg)}
-.tile.part{border-color:var(--part);background:var(--partbg)}
-.row{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dashed var(--line)}
+html{background:var(--bg)}
+body{margin:0;background:radial-gradient(1200px 500px at 50% -200px,var(--bg2),var(--bg));min-height:100vh;color:var(--ink);font:16px/1.4 "Inter","Segoe UI",Roboto,system-ui,sans-serif;-webkit-tap-highlight-color:transparent;font-variant-numeric:tabular-nums}
+header{position:sticky;top:0;z-index:20;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:color-mix(in srgb,var(--bg) 78%,transparent);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;gap:10px}
+header h1{font-size:17px;margin:0;flex:1;letter-spacing:.2px;font-weight:800}
+header h1 small{display:block;font-size:11px;font-weight:600;color:var(--mut);letter-spacing:1.2px;text-transform:uppercase}
+header button{background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:8px 12px;font-size:14px;font-weight:700;box-shadow:var(--shadow)}
+main{max-width:640px;margin:0 auto;padding:14px 16px 90px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card h2{font-size:13px;margin:0 0 10px;color:var(--mut);text-transform:uppercase;letter-spacing:1.2px;font-weight:800}
+.hero{background:var(--hero);color:#fff;border:0;border-radius:24px;padding:20px;display:flex;gap:18px;align-items:center;position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;right:-60px;top:-60px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.07)}
+.ring{position:relative;width:112px;height:112px;flex:none}
+.ring svg{transform:rotate(-90deg)}
+.ring .n{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;font-size:30px;line-height:1}
+.ring .n small{font-size:12px;font-weight:600;opacity:.8;margin-top:4px}
+.hero h3{margin:0 0 4px;font-size:21px;font-weight:900;letter-spacing:-.2px}
+.hero p{margin:0;opacity:.88;font-size:14px}
+.chips{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px;box-shadow:var(--shadow);text-align:center}
+.chip b{display:block;font-size:17px;font-weight:900}
+.chip span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.8px;font-weight:700}
+.chip.ok b{color:var(--ok)}.chip.bad{border-color:var(--bad);background:var(--badbg)}.chip.bad b{color:var(--bad)}
+.alarm{border:2px solid var(--bad);background:var(--badbg);color:var(--bad);border-radius:20px;padding:14px 16px;margin-bottom:14px;animation:pulse 1.6s ease-in-out infinite;box-shadow:0 0 0 0 rgba(220,38,38,.5)}
+.alarm h4{margin:0 0 6px;font-size:18px;font-weight:900;display:flex;gap:8px;align-items:center}
+.alarm ul{margin:0;padding-left:20px;font-weight:700;font-size:15px}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.45)}50%{box-shadow:0 0 0 8px rgba(220,38,38,0)}}
+.passbar{border:2px solid var(--ok);background:var(--okbg);color:var(--ok);border-radius:20px;padding:14px 16px;margin-bottom:14px;font-weight:900;font-size:18px;display:flex;align-items:center;gap:10px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tile{position:relative;border:1px solid var(--line);border-radius:18px;padding:16px 4px 12px;text-align:center;font-weight:900;font-size:21px;background:var(--card);color:var(--ink);box-shadow:var(--shadow);transition:transform .12s}
+.tile:active{transform:scale(.96)}
+.tile small{display:block;font-weight:600;font-size:12px;color:var(--mut);margin-top:3px}
+.tile.ok{border:2px solid var(--ok);background:linear-gradient(180deg,var(--okbg),var(--card))}
+.tile.ok:after{content:"✓";position:absolute;top:6px;right:9px;font-size:14px;color:var(--ok)}
+.tile.bad{border:2px solid var(--bad);background:var(--badbg);animation:pulse 1.6s ease-in-out infinite}
+.tile.bad:after{content:"!";position:absolute;top:5px;right:10px;font-size:15px;color:var(--bad)}
+.tile.part{border:2px solid var(--part);background:linear-gradient(180deg,var(--partbg),var(--card))}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:0}
-.row span:first-child{color:var(--mut)}
-.pill{font-weight:700;padding:1px 8px;border-radius:99px;white-space:nowrap}
-.pill.ok{color:var(--ok);background:var(--okbg)}.pill.bad{color:var(--bad);background:var(--badbg)}.pill.wait{color:var(--mut);background:var(--bg)}
-.obs{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--line)}
-.obs label{font-size:14px}.obs label b{font-size:16px}
-.dms{display:flex;align-items:center;gap:2px}
-.dms input{width:52px;font-size:20px;padding:8px 4px;text-align:center;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.row span:first-child{color:var(--mut);font-size:14px}
+.pill{font-weight:800;padding:3px 10px;border-radius:99px;white-space:nowrap;font-size:14px}
+.pill.ok{color:var(--ok);background:var(--okbg)}.pill.bad{color:#fff;background:var(--bad)}.pill.wait{color:var(--mut);background:var(--bg2)}
+.obs{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid var(--line)}
+.obs label{font-size:14px;color:var(--mut)}.obs label b{font-size:16px;color:var(--ink);display:inline-block;min-width:26px}
+.obs.badobs label b{color:var(--bad)}
+.dms{display:flex;align-items:center;gap:3px}
+.dms input{width:50px;font-size:21px;font-weight:700;padding:9px 2px;text-align:center;border:1.5px solid var(--line);border-radius:12px;background:var(--input);color:var(--ink);font-variant-numeric:tabular-nums}
 .dms input.d{width:62px}
-.dms i{font-style:normal;color:var(--mut);font-size:15px}
-input.err{border-color:var(--bad)!important;background:var(--badbg)!important}
-input:focus{outline:3px solid var(--acc);outline-offset:0}
-.dist{display:grid;grid-template-columns:1fr 130px;align-items:center;gap:6px;padding:6px 0}
-.dist input{font-size:20px;padding:8px;border:1px solid var(--line);border-radius:8px;width:100%;background:var(--bg);color:var(--ink);text-align:right}
-.btns{display:flex;flex-wrap:wrap;gap:8px}
-.btn{flex:1 1 45%;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:15px;font-weight:600}
-.btn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
-@media (prefers-color-scheme:dark){.btn.pri{color:#06240f}}
-.note{color:var(--mut);font-size:13px;margin:6px 0 0}
-textarea{width:100%;min-height:56px;font:inherit;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--bg);color:var(--ink)}
-.nav{display:flex;gap:8px;margin-bottom:12px}.nav .btn{flex:1}
+.dms i{font-style:normal;color:var(--mut);font-size:15px;font-weight:700}
+input.err{border-color:var(--bad)!important;background:var(--badbg)!important;color:var(--bad)!important}
+input:focus{outline:none;border-color:var(--acc)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 30%,transparent)}
+.dist{display:grid;grid-template-columns:1fr 140px;align-items:center;gap:8px;padding:8px 0}
+.dist label{font-size:14px}
+.dist input{font-size:21px;font-weight:700;padding:9px 10px;border:1.5px solid var(--line);border-radius:12px;width:100%;background:var(--input);color:var(--ink);text-align:right}
+.big{font-size:26px;font-weight:900;letter-spacing:-.3px}
+.btns{display:flex;flex-wrap:wrap;gap:10px}
+.btn{flex:1 1 45%;padding:14px;border-radius:14px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:15px;font-weight:800;box-shadow:var(--shadow)}
+.btn:active{transform:scale(.98)}
+.btn.pri{background:var(--hero);color:#fff;border:0}
+.note{color:var(--mut);font-size:13px;margin:8px 0 0}
+textarea{width:100%;min-height:60px;font:inherit;border:1.5px solid var(--line);border-radius:12px;padding:10px;background:var(--input);color:var(--ink)}
+.nav{display:flex;gap:10px;margin-bottom:14px}.nav .btn{flex:1}
+.sth{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sth .from,.sth .to{flex:1;text-align:center;background:var(--bg2);border-radius:14px;padding:10px 4px}
+.sth .from b,.sth .to b{display:block;font-size:20px;font-weight:900}
+.sth .from span,.sth .to span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:1px;font-weight:700}
+.sth .me{font-size:28px;font-weight:900;color:var(--acc)}
 table{width:100%;border-collapse:collapse;font-size:14px}
-th,td{padding:5px 4px;border-bottom:1px solid var(--line);text-align:right}
-th:first-child,td:first-child{text-align:left}
+th{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.8px}
+th,td{padding:7px 4px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left;font-weight:700}
+tr.badrow td{background:var(--badbg)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);background:var(--ok);color:#fff;font-weight:900;padding:14px 22px;border-radius:99px;box-shadow:0 10px 30px rgba(0,0,0,.3);transition:transform .35s cubic-bezier(.2,1.4,.4,1);z-index:50;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.bad{background:var(--bad)}
 .hidden{display:none}
 </style>
 </head>
@@ -136,77 +175,108 @@ const app=document.getElementById("app"),title=document.getElementById("title"),
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const pill=(state,txt)=>`<span class="pill ${state}">${txt}</span>`;
 function precTxt(p){return p===Infinity?"1/∞":"1/"+Math.round(p)}
-let cur=null;
+let cur=null,lastStatus=null;
 homeBtn.onclick=()=>{location.hash=""};
 window.addEventListener("hashchange",route);
-function route(){const h=decodeURIComponent(location.hash.slice(1));cur=ST.includes(h)?h:null;cur?renderStation(cur):renderHome();window.scrollTo(0,0)}
+function route(){const h=decodeURIComponent(location.hash.slice(1));cur=ST.includes(h)?h:null;lastStatus=null;cur?renderStation(cur):renderHome();window.scrollTo(0,0)}
+function toast(msg,bad){let t=document.querySelector(".toast");if(!t){t=document.createElement("div");t.className="toast";document.body.appendChild(t)}
+  t.textContent=msg;t.classList.toggle("bad",!!bad);requestAnimationFrame(()=>t.classList.add("show"));clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),2600);
+  if(navigator.vibrate)navigator.vibrate(bad?[200,80,200,80,200]:[60,40,60])}
+function issues(s){ // every failing check at a station, worded for the field
+  const i=ST.indexOf(s),c=stCalc(s),out=[];
+  [c.a,c.b].forEach((r,si)=>{const set="Set "+(si?"II":"I");
+    if(r.cBS!=null&&Math.abs(r.cBS)>LIM.face)out.push(`${set}: FR−FL on ${bsOf(i)} off by ${Math.abs(r.cBS)}″ (limit 20″)`);
+    if(r.cFS!=null&&Math.abs(r.cFS)>LIM.face)out.push(`${set}: FR−FL on ${fsOf(i)} off by ${Math.abs(r.cFS)}″ (limit 20″)`)});
+  if(c.setBad)out.push(`Set I vs Set II differ by ${c.setDiff}″ (limit 60″)`);
+  const L=legs();for(const l of[L[(i-1+N)%N],L[i]])if(l.prec!=null&&l.prec<LIM.prec)out.push(`Leg ${l.from}–${l.to} precision ${precTxt(l.prec)} (need 1/5000)`);
+  const st=D[s];for(const si of[0,1])for(const[k,f,t]of OBS){const v=st.sets[si][k];if(v&&v.some((x,p)=>!cellOK(p,x||"")))out.push(`Set ${si?"II":"I"} ${f}→${t}: value out of range`)}
+  return out;
+}
+function ring(done){const r=50,C=2*Math.PI*r,f=done/N;
+  return `<div class="ring"><svg width="112" height="112"><circle cx="56" cy="56" r="${r}" stroke="rgba(255,255,255,.18)" stroke-width="10" fill="none"/>
+  <circle cx="56" cy="56" r="${r}" stroke="url(#g)" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-f)}" style="transition:stroke-dashoffset .8s"/>
+  <defs><linearGradient id="g"><stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#facc15"/></linearGradient></defs></svg>
+  <div class="n">${done}<small>of ${N}</small></div></div>`}
+function motto(S){const d=S.done.length,left=N-d;
+  if(S.err!=null)return Math.abs(S.err)<=S.perm?["Traverse closed","Error "+S.err+"″ within ±"+Math.round(S.perm)+"″. Brilliant work."]:["All observed","Closing error "+S.err+"″ exceeds ±"+Math.round(S.perm)+"″. Find the bad station."];
+  if(d===0)return["Let's go, Group 09",N+" stations to conquer today."];
+  if(d<N/2)return[d+" down, "+left+" to go","Steady pace beats rushing."];
+  if(left>3)return["Past halfway","Only "+left+" stations left."];
+  return["Final stretch",left+" more and the loop closes."]}
 
 function renderHome(){
-  title.textContent="Major Traverse";homeBtn.classList.add("hidden");
-  const S=summary();
-  const tiles=ST.map((s,i)=>{const c=S.C[i];const sub=c.final!=null?fmt(c.final):c.status==="part"?"partial":"—";
-    return `<button class="tile ${c.status}" onclick="location.hash='${s}'">${s}<small>${sub}</small></button>`}).join("");
-  const ratioState=S.ratio==null?"wait":S.ratio<=LIM.ratio?"ok":"bad";
-  const angState=S.err==null?"wait":Math.abs(S.err)<=S.perm?"ok":"bad";
+  title.innerHTML="Major Traverse<small>Group 09 · CP1 → M16 → CP1</small>";homeBtn.classList.add("hidden");
+  const S=summary(),[h3,p]=motto(S);
+  const bad=ST.map(s=>[s,issues(s)]).filter(x=>x[1].length);
+  const ratioBad=S.ratio!=null&&S.ratio>LIM.ratio,angBad=S.err!=null&&Math.abs(S.err)>S.perm;
   const precBad=S.L.filter(l=>l.prec!=null&&l.prec<LIM.prec);
+  const alarms=[...bad.map(([s,is])=>`<b>${s}</b>: ${is.join(" · ")}`)];
+  if(ratioBad)alarms.push(`Leg ratio ${S.ratio.toFixed(2)}:1 exceeds 2:1 (${S.maxL.from}–${S.maxL.to} vs ${S.minL.from}–${S.minL.to})`);
+  if(angBad)alarms.push(`Angular closing error ${S.err}″ exceeds ±${Math.round(S.perm)}″`);
+  const tiles=ST.map((s,i)=>{const c=S.C[i],bd=issues(s).length;const st=bd?"bad":c.status;const sub=bd?"check!":c.final!=null?fmt(c.final):st==="part"?"in progress":"—";
+    return `<button class="tile ${st}" onclick="location.hash='${s}'">${s}<small>${sub}</small></button>`}).join("");
   const legRows=S.L.map(l=>{
-    const st=l.prec==null?pill("wait",l.fw==null&&l.bw==null?"—":"wait "+(l.fw==null?l.from:l.to)):l.prec>=LIM.prec?pill("ok",precTxt(l.prec)):pill("bad",precTxt(l.prec));
+    const st=l.prec==null?pill("wait",l.fw==null&&l.bw==null?"—":"at "+(l.fw==null?l.from:l.to)):l.prec>=LIM.prec?pill("ok",precTxt(l.prec)):pill("bad",precTxt(l.prec));
     const r=S.ratio!=null&&(l===S.maxL||l===S.minL)?(l===S.maxL?" ▲":" ▼"):"";
-    return `<tr><td>${l.from}–${l.to}${r}</td><td>${l.fw??"–"}</td><td>${l.bw??"–"}</td><td>${st}</td></tr>`}).join("");
+    return `<tr class="${l.prec!=null&&l.prec<LIM.prec?"badrow":""}"><td>${l.from}–${l.to}${r}</td><td>${l.fw??"–"}</td><td>${l.bw??"–"}</td><td>${st}</td></tr>`}).join("");
+  const errTxt=S.err==null?(S.done.length?fmt(S.sum):"—"):(S.err>0?"+":"")+S.err+"″";
   app.innerHTML=`
-  <div class="card"><h2>Overall</h2>
-    <div class="row"><span>Stations done</span><b>${S.done.length} / ${N}</b></div>
-    <div class="row"><span>Sum of angles so far</span><b>${fmt(S.sum)}</b></div>
-    <div class="row"><span>Theoretical (2N−4)×90°</span><b>${S.theo}° 0' 0"</b></div>
-    <div class="row"><span>Angular error (±${Math.round(S.perm*10)/10}" allowed)</span>${S.err==null?pill("wait","after all "+N):pill(angState,(S.err>0?"+":"")+S.err+'"')}</div>
-    <div class="row"><span>Leg ratio max:min (≤ 2:1)</span>${S.ratio==null?pill("wait","need 2 legs"):pill(ratioState,S.ratio.toFixed(2)+" : 1")}</div>
-    ${S.ratio!=null?`<p class="note">Longest ${S.maxL.from}–${S.maxL.to} ${S.maxL.avg.toFixed(3)} m ▲ · shortest ${S.minL.from}–${S.minL.to} ${S.minL.avg.toFixed(3)} m ▼</p>`:""}
-    <div class="row"><span>Legs below 1:${LIM.prec}</span>${precBad.length?pill("bad",precBad.map(l=>l.from+"–"+l.to).join(", ")):pill("ok","none")}</div>
+  <div class="card hero">${ring(S.done.length)}<div><h3>${h3}</h3><p>${p}</p></div></div>
+  ${alarms.length?`<div class="alarm"><h4>⚠ ${alarms.length} warning${alarms.length>1?"s":""}</h4><ul>${alarms.map(a=>`<li>${a}</li>`).join("")}</ul></div>`:""}
+  <div class="chips">
+    <div class="chip ${angBad?"bad":S.err!=null?"ok":""}"><b>${errTxt}</b><span>${S.err==null?"Angle sum":"Ang. error"}</span></div>
+    <div class="chip ${ratioBad?"bad":S.ratio!=null?"ok":""}"><b>${S.ratio==null?"—":S.ratio.toFixed(2)+":1"}</b><span>Leg ratio</span></div>
+    <div class="chip ${precBad.length?"bad":S.L.some(l=>l.prec!=null)?"ok":""}"><b>${precBad.length}</b><span>Legs &lt;1:5000</span></div>
   </div>
   <div class="grid">${tiles}</div>
-  <p class="note">Grey: not started · Yellow: partial · Green: passed · Red: re-observe</p>
-  <div class="card" style="margin-top:12px"><h2>Legs (horizontal distance, m)</h2>
+  <p class="note">Tap any station, in any order. Nothing is ever blocked: every value saves, warnings only alert you.</p>
+  <div class="card" style="margin-top:14px"><h2>Closure</h2>
+    <div class="row"><span>Sum of observed angles</span><b>${fmt(S.sum)}</b></div>
+    <div class="row"><span>Theoretical (2N−4)×90°</span><b>${S.theo}° 0' 0"</b></div>
+    <div class="row"><span>Permissible ±30″√N</span><b>±${Math.round(S.perm*10)/10}″</b></div>
+    <div class="row"><span>Perimeter so far</span><b>${S.perim.toFixed(3)} m</b></div>
+    ${S.ratio!=null?`<div class="row"><span>Longest ▲ / shortest ▼</span><b>${S.maxL.avg.toFixed(2)} / ${S.minL.avg.toFixed(2)} m</b></div>`:""}</div>
+  <div class="card"><h2>Legs · horizontal distance (m)</h2>
     <table><tr><th>Leg</th><th>FW</th><th>BW</th><th>Precision</th></tr>${legRows}</table>
-    <p class="note">FW = measured at the first station, BW = measured back from the second.</p></div>
+    <p class="note">FW measured at the first station, BW measured back from the second.</p></div>
   <div class="card"><h2>Data safety</h2>
     <div class="btns">
-      <button class="btn pri" onclick="backup()">Save backup file</button>
+      <button class="btn pri" onclick="backup()">Save backup</button>
       <button class="btn" onclick="shareBackup()">Share backup</button>
-      <button class="btn" onclick="document.getElementById('fileIn').click()">Merge a backup</button>
-      <button class="btn" onclick="exportCSV()">Excel export (CSV)</button>
+      <button class="btn" onclick="document.getElementById('fileIn').click()">Merge backup</button>
+      <button class="btn" onclick="exportCSV()">Excel export</button>
     </div>
-    <p class="note">Last saved on this phone: ${esc((localStorage.getItem(KEY+"-t")||"never").replace("T"," ").slice(0,19))} UTC${saveErr?" — SAVE FAILED":""}. Merge only fills empty boxes, it never overwrites.</p>
+    <p class="note">Last saved: ${esc((localStorage.getItem(KEY+"-t")||"never").replace("T"," ").slice(0,19))} UTC${saveErr?" · SAVE FAILED":""}. Merge only fills empty boxes, never overwrites.</p>
     <div class="btns" style="margin-top:10px"><button class="btn" onclick="wipe()">Clear all data…</button></div>
   </div>`;
 }
 
 function dmsHTML(si,k,v){v=v||["","",""];
   return `<div class="dms" data-si="${si}" data-k="${k}">
-   <input class="d" inputmode="numeric" enterkeyhint="next" maxlength="3" value="${esc(v[0])}" data-p="0" aria-label="degrees"><i>°</i>
-   <input inputmode="numeric" enterkeyhint="next" maxlength="2" value="${esc(v[1])}" data-p="1" aria-label="minutes"><i>'</i>
-   <input inputmode="numeric" enterkeyhint="next" maxlength="2" value="${esc(v[2])}" data-p="2" aria-label="seconds"><i>"</i></div>`}
+   <input class="d" inputmode="numeric" enterkeyhint="next" maxlength="3" value="${esc(v[0])}" data-p="0" aria-label="degrees" placeholder="D"><i>°</i>
+   <input inputmode="numeric" enterkeyhint="next" maxlength="2" value="${esc(v[1])}" data-p="1" aria-label="minutes" placeholder="M"><i>'</i>
+   <input inputmode="numeric" enterkeyhint="next" maxlength="2" value="${esc(v[2])}" data-p="2" aria-label="seconds" placeholder="S"><i>"</i></div>`}
 
 function renderStation(s){
   const i=ST.indexOf(s),st=D[s],bs=bsOf(i),fs=fsOf(i);
-  title.textContent="Station "+s;homeBtn.classList.remove("hidden");
+  title.innerHTML=`Station ${s}<small>${i+1} of ${N} · interior, clockwise</small>`;homeBtn.classList.remove("hidden");
   const setCard=si=>`<div class="card"><h2>Set ${si===0?"I":"II"}</h2>
-    ${OBS.map(([k,face,t])=>`<div class="obs"><label><b>${face}</b> → ${t==="BS"?bs:fs} <small>(${t})</small></label>${dmsHTML(si,k,st.sets[si][k])}</div>`).join("")}
+    ${OBS.map(([k,face,t])=>`<div class="obs" id="o${si}${k}"><label><b>${face}</b> → ${t==="BS"?bs:fs} <small>${t}</small></label>${dmsHTML(si,k,st.sets[si][k])}</div>`).join("")}
     <div id="res${si}" style="margin-top:8px"></div></div>`;
   app.innerHTML=`
-  <div class="nav"><button class="btn" onclick="location.hash='${bsOf(i)}'">◀ ${bsOf(i)}</button><button class="btn" onclick="location.hash='${fs}'">${fs} ▶</button></div>
-  <div class="card"><div class="row"><span>Back sight</span><b>${bs}</b></div><div class="row"><span>Fore sight</span><b>${fs}</b></div>
-  <p class="note">Interior angle, clockwise from ${bs} to ${fs}.</p></div>
+  <div id="banner"></div>
+  <div class="card"><div class="sth"><div class="from"><span>Back sight</span><b>${bs}</b></div><div class="me">${s}</div><div class="to"><span>Fore sight</span><b>${fs}</b></div></div></div>
   ${setCard(0)}${setCard(1)}
   <div class="card"><h2>Horizontal distance (m)</h2>
-    <div class="dist"><label>${s} → ${bs} <small>(BW of ${bs}–${s})</small></label><input inputmode="decimal" data-dist="dBS" value="${esc(st.dBS)}"></div>
-    <div class="dist"><label>${s} → ${fs} <small>(FW of ${s}–${fs})</small></label><input inputmode="decimal" data-dist="dFS" value="${esc(st.dFS)}"></div>
+    <div class="dist"><label>${s} → ${bs}<br><small class="note">BW of ${bs}–${s}</small></label><input inputmode="decimal" enterkeyhint="next" data-dist="dBS" value="${esc(st.dBS)}" placeholder="0.000"></div>
+    <div class="dist"><label>${s} → ${fs}<br><small class="note">FW of ${s}–${fs}</small></label><input inputmode="decimal" enterkeyhint="next" data-dist="dFS" value="${esc(st.dFS)}" placeholder="0.000"></div>
     <div id="resD"></div></div>
   <div class="card"><h2>Result</h2><div id="resF"></div></div>
   <div class="card"><h2>Note</h2><textarea data-note placeholder="Peg, sketch, remarks…">${esc(st.note)}</textarea></div>
-  <div class="nav"><button class="btn pri" onclick="location.hash=''">Done · all stations</button></div>`;
+  <div class="nav"><button class="btn" onclick="location.hash='${bs}'">◀ ${bs}</button><button class="btn" onclick="location.hash='${fs}'">${fs} ▶</button></div>
+  <div class="nav"><button class="btn pri" onclick="location.hash=''">All stations</button></div>`;
   wire();updateStation();
 }
-
 function cellOK(p,val){if(val==="")return true;if(!/^\d+$/.test(val))return false;const n=+val;return p===0?n<360:n<60}
 function wire(){
   const ins=[...app.querySelectorAll("input")];
@@ -239,20 +309,28 @@ function wire(){
 function faceRow(lbl,v){if(v==null)return `<div class="row"><span>${lbl}</span>${pill("wait","—")}</div>`;
   return `<div class="row"><span>${lbl}</span>${pill(Math.abs(v)<=LIM.face?"ok":"bad","180° "+(v>=0?"+":"−")+Math.abs(v)+'"')}</div>`}
 function updateStation(){
-  const s=cur,i=ST.indexOf(s),c=stCalc(s);
+  const s=cur,i=ST.indexOf(s),c=stCalc(s),is=issues(s);
   [c.a,c.b].forEach((r,si)=>{document.getElementById("res"+si).innerHTML=
-    faceRow("FR−FL on "+bsOf(i)+" (180°±20\")",r.cBS)+faceRow("FR−FL on "+fsOf(i)+" (180°±20\")",r.cFS)+
+    faceRow("FR−FL on "+bsOf(i),r.cBS)+faceRow("FR−FL on "+fsOf(i),r.cFS)+
     `<div class="row"><span>Face left angle</span><b>${fmt(r.FL)}</b></div><div class="row"><span>Face right angle</span><b>${fmt(r.FR)}</b></div>
-     <div class="row"><span>Set mean</span><b>${fmt(r.mean)}</b></div>`});
+     <div class="row"><span>Set mean</span><b>${fmt(r.mean)}</b></div>`;
+    document.getElementById("o"+si+"bsL").classList.toggle("badobs",r.cBS!=null&&Math.abs(r.cBS)>LIM.face);
+    document.getElementById("o"+si+"bsR").classList.toggle("badobs",r.cBS!=null&&Math.abs(r.cBS)>LIM.face);
+    document.getElementById("o"+si+"fsL").classList.toggle("badobs",r.cFS!=null&&Math.abs(r.cFS)>LIM.face);
+    document.getElementById("o"+si+"fsR").classList.toggle("badobs",r.cFS!=null&&Math.abs(r.cFS)>LIM.face)});
   const L=legs(),lb=L[(i-1+N)%N],lf=L[i];
-  const legRow=(l,lbl)=>`<div class="row"><span>${lbl}</span>${l.prec==null?pill("wait",l.fw==null&&l.bw==null?"—":"other end at "+(l.fw==null?l.from:l.to)):pill(l.prec>=LIM.prec?"ok":"bad",precTxt(l.prec)+" (Δ "+(l.disc*1000).toFixed(0)+" mm)")}</div>`;
-  document.getElementById("resD").innerHTML=legRow(lb,lb.from+"–"+lb.to+" precision ≥1:5000")+legRow(lf,lf.from+"–"+lf.to+" precision ≥1:5000");
-  const sd=c.setDiff;
+  const legRow=(l,lbl)=>`<div class="row"><span>${lbl}</span>${l.prec==null?pill("wait",l.fw==null&&l.bw==null?"—":"other end at "+(l.fw==null?l.from:l.to)):pill(l.prec>=LIM.prec?"ok":"bad",precTxt(l.prec)+" · Δ"+(l.disc*1000).toFixed(0)+"mm")}</div>`;
+  document.getElementById("resD").innerHTML=legRow(lb,lb.from+"–"+lb.to)+legRow(lf,lf.from+"–"+lf.to);
+  const sd=c.setDiff,status=is.length?"bad":c.status;
   document.getElementById("resF").innerHTML=
-    `<div class="row"><span>Set I vs Set II (≤ 1')</span>${sd==null?pill("wait","—"):pill(sd<=LIM.sets?"ok":"bad",sd+'"')}</div>
-     <div class="row"><span>Mean horizontal angle</span><b style="font-size:20px">${fmt(c.final)}</b></div>
-     <div class="row"><span>Station status</span>${c.status==="ok"?pill("ok","PASS · can move"):c.status==="bad"?pill("bad","RE-OBSERVE"):pill("wait","incomplete")}</div>`;
+    `<div class="row"><span>Set I vs Set II (≤ 60″)</span>${sd==null?pill("wait","—"):pill(sd<=LIM.sets?"ok":"bad",sd+'"')}</div>
+     <div class="row"><span>Mean horizontal angle</span><span class="big">${fmt(c.final)}</span></div>`;
+  document.getElementById("banner").innerHTML=is.length?`<div class="alarm"><h4>⚠ Re-check before leaving ${s}</h4><ul>${is.map(x=>`<li>${x}</li>`).join("")}</ul></div>`
+    :status==="ok"?`<div class="passbar">✓ ${s} passed all checks · move on</div>`:"";
+  if(lastStatus!==null&&status!==lastStatus){if(status==="bad")toast("⚠ Check failed at "+s,true);else if(status==="ok")toast("✓ "+s+" complete")}
+  lastStatus=status;
 }
+
 
 /* ===== Backup / merge / export ===== */
 function stamp(){const d=new Date(),p=n=>String(n).padStart(2,"0");return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`}
