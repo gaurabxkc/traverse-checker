@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14532d">
+<title>Traverse Checker</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+:root{--bg:#f6f7f5;--card:#fff;--ink:#111;--mut:#5b6360;--line:#cfd5d2;--ok:#15803d;--okbg:#dcfce7;--bad:#b91c1c;--badbg:#fee2e2;--part:#a16207;--partbg:#fef3c7;--acc:#14532d}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1311;--card:#1a201d;--ink:#eef2ef;--mut:#9aa5a0;--line:#33403a;--ok:#4ade80;--okbg:#14301f;--bad:#f87171;--badbg:#3a1616;--part:#fbbf24;--partbg:#3a2d0c;--acc:#86efac}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 system-ui,-apple-system,Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+header{position:sticky;top:0;z-index:5;background:var(--acc);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px}
+@media (prefers-color-scheme:dark){header{color:#06240f}}
+header h1{font-size:18px;margin:0;flex:1}
+header button{background:transparent;border:1px solid currentColor;color:inherit;border-radius:8px;padding:6px 10px;font-size:15px}
+main{max-width:640px;margin:0 auto;padding:12px 12px 80px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
+.card h2{font-size:16px;margin:0 0 8px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{border:2px solid var(--line);border-radius:10px;padding:12px 4px;text-align:center;font-weight:700;font-size:18px;background:var(--card);color:var(--ink)}
+.tile small{display:block;font-weight:400;font-size:12px;color:var(--mut)}
+.tile.ok{border-color:var(--ok);background:var(--okbg)}
+.tile.bad{border-color:var(--bad);background:var(--badbg)}
+.tile.part{border-color:var(--part);background:var(--partbg)}
+.row{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dashed var(--line)}
+.row:last-child{border-bottom:0}
+.row span:first-child{color:var(--mut)}
+.pill{font-weight:700;padding:1px 8px;border-radius:99px;white-space:nowrap}
+.pill.ok{color:var(--ok);background:var(--okbg)}.pill.bad{color:var(--bad);background:var(--badbg)}.pill.wait{color:var(--mut);background:var(--bg)}
+.obs{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--line)}
+.obs label{font-size:14px}.obs label b{font-size:16px}
+.dms{display:flex;align-items:center;gap:2px}
+.dms input{width:52px;font-size:20px;padding:8px 4px;text-align:center;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.dms input.d{width:62px}
+.dms i{font-style:normal;color:var(--mut);font-size:15px}
+input.err{border-color:var(--bad)!important;background:var(--badbg)!important}
+input:focus{outline:3px solid var(--acc);outline-offset:0}
+.dist{display:grid;grid-template-columns:1fr 130px;align-items:center;gap:6px;padding:6px 0}
+.dist input{font-size:20px;padding:8px;border:1px solid var(--line);border-radius:8px;width:100%;background:var(--bg);color:var(--ink);text-align:right}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{flex:1 1 45%;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:15px;font-weight:600}
+.btn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+@media (prefers-color-scheme:dark){.btn.pri{color:#06240f}}
+.note{color:var(--mut);font-size:13px;margin:6px 0 0}
+textarea{width:100%;min-height:56px;font:inherit;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--bg);color:var(--ink)}
+.nav{display:flex;gap:8px;margin-bottom:12px}.nav .btn{flex:1}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:5px 4px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<header><h1 id="title">Major Traverse</h1><button id="homeBtn" class="hidden">◀ All</button></header>
+<main id="app"></main>
+<input type="file" id="fileIn" accept=".json,application/json" class="hidden">
+<script>
+"use strict";
+/* ===== Config: loop CP1 -> CP2 -> M1..M16 -> CP1, interior angles clockwise, 2 sets ===== */
+const ST = ["CP1","CP2"].concat(Array.from({length:16},(_,i)=>"M"+(i+1)));
+const N = ST.length;
+const KEY = "trav-major-v1";
+const LIM = {face:20, sets:60, prec:5000, ratio:2, angK:30}; // seconds, seconds, 1:x, max:min, 30"√n
+const bsOf = i => ST[(i-1+N)%N], fsOf = i => ST[(i+1)%N];
+const OBS = [["bsL","FL","BS"],["fsL","FL","FS"],["bsR","FR","BS"],["fsR","FR","FS"]]; // template row order
+
+/* ===== Storage (autosave on every keystroke) ===== */
+function blank(){const o={};for(const s of ST)o[s]={sets:[{},{}],dBS:"",dFS:"",note:""};return o}
+let D;
+try{D=JSON.parse(localStorage.getItem(KEY))||blank()}catch(e){D=blank()}
+for(const s of ST)if(!D[s])D[s]={sets:[{},{}],dBS:"",dFS:"",note:""};
+let saveErr=false;
+function save(){try{localStorage.setItem(KEY,JSON.stringify(D));localStorage.setItem(KEY+"-t",new Date().toISOString());saveErr=false}catch(e){saveErr=true;alert("Could not save on this phone! Make a backup now.")}}
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
+
+/* ===== Maths (same as template HCR sheet) ===== */
+const dec = a => (a&&a.length===3&&a.every(v=>v!==""&&v!=null))?(+a[0])+(+a[1])/60+(+a[2])/3600:null;
+const mod360 = x => ((x%360)+360)%360;
+function fmt(x){ // template's LET formula: round to whole seconds, carry 60
+  if(x==null||isNaN(x))return "–";const neg=x<0;x=Math.abs(x);
+  let d=Math.floor(x),mr=(x-d)*60,m=Math.floor(mr),s=Math.round((mr-m)*60);
+  if(s===60){s=0;m++}if(m===60){m=0;d++}
+  return (neg?"-":"")+d+"° "+m+"' "+s+'"';
+}
+const secs = x => Math.round(x*3600);
+function setCalc(set){
+  const r={};for(const[k]of OBS)r[k]=dec(set[k]);
+  r.FL=(r.bsL!=null&&r.fsL!=null)?mod360(r.fsL-r.bsL):null;
+  r.FR=(r.bsR!=null&&r.fsR!=null)?mod360(r.fsR-r.bsR):null;
+  r.mean=(r.FL!=null&&r.FR!=null)?(r.FL+r.FR)/2:null;
+  // guideline check: FR reading - FL reading on same target = 180° ± 20"
+  r.cBS=(r.bsL!=null&&r.bsR!=null)?secs(mod360(r.bsR-r.bsL))-648000:null;
+  r.cFS=(r.fsL!=null&&r.fsR!=null)?secs(mod360(r.fsR-r.fsL))-648000:null;
+  return r;
+}
+function stCalc(s){
+  const st=D[s],a=setCalc(st.sets[0]),b=setCalc(st.sets[1]);
+  const final=(a.mean!=null&&b.mean!=null)?(a.mean+b.mean)/2:null;
+  const setDiff=final!=null?Math.abs(secs(a.mean)-secs(b.mean)):null;
+  const faceVals=[a.cBS,a.cFS,b.cBS,b.cFS];
+  const faceBad=faceVals.some(v=>v!=null&&Math.abs(v)>LIM.face);
+  const setBad=setDiff!=null&&setDiff>LIM.sets;
+  const filled=OBS.every(([k])=>dec(st.sets[0][k])!=null&&dec(st.sets[1][k])!=null);
+  const any=OBS.some(([k])=>st.sets[0][k]||st.sets[1][k])||st.dBS||st.dFS;
+  const dOk=num(st.dBS)!=null&&num(st.dFS)!=null;
+  const status=(faceBad||setBad)?"bad":(filled&&dOk)?"ok":any?"part":"";
+  return{a,b,final,setDiff,faceBad,setBad,status};
+}
+const num = v => (v===""||v==null||isNaN(+v))?null:+v;
+function legs(){ // leg i: ST[i] -> ST[i+1]; FW measured at ST[i] (its FS), BW at ST[i+1] (its BS)
+  return ST.map((s,i)=>{
+    const t=fsOf(i),fw=num(D[s].dFS),bw=num(D[t].dBS);
+    const both=fw!=null&&bw!=null,avg=both?(fw+bw)/2:(fw??bw);
+    const disc=both?Math.abs(fw-bw):null;
+    const prec=both?(disc===0?Infinity:avg/disc):null;
+    return{from:s,to:t,fw,bw,avg,disc,prec};
+  });
+}
+function summary(){
+  const L=legs(),known=L.filter(l=>l.avg!=null);
+  let ratio=null,maxL=null,minL=null;
+  if(known.length>=2){maxL=known.reduce((p,c)=>c.avg>p.avg?c:p);minL=known.reduce((p,c)=>c.avg<p.avg?c:p);ratio=maxL.avg/minL.avg}
+  const C=ST.map(stCalc),done=C.filter(c=>c.final!=null);
+  const sum=done.reduce((p,c)=>p+c.final,0);
+  const theo=(2*N-4)*90,perm=LIM.angK*Math.sqrt(N);
+  const err=done.length===N?secs(sum)-theo*3600:null;
+  const perim=known.reduce((p,c)=>p+c.avg,0);
+  return{L,known,ratio,maxL,minL,C,done,sum,theo,perm,err,perim};
+}
+
+/* ===== UI ===== */
+const app=document.getElementById("app"),title=document.getElementById("title"),homeBtn=document.getElementById("homeBtn");
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pill=(state,txt)=>`<span class="pill ${state}">${txt}</span>`;
+function precTxt(p){return p===Infinity?"1/∞":"1/"+Math.round(p)}
+let cur=null;
+homeBtn.onclick=()=>{location.hash=""};
+window.addEventListener("hashchange",route);
+function route(){const h=decodeURIComponent(location.hash.slice(1));cur=ST.includes(h)?h:null;cur?renderStation(cur):renderHome();window.scrollTo(0,0)}
+
+function renderHome(){
+  title.textContent="Major Traverse";homeBtn.classList.add("hidden");
+  const S=summary();
+  const tiles=ST.map((s,i)=>{const c=S.C[i];const sub=c.final!=null?fmt(c.final):c.status==="part"?"partial":"—";
+    return `<button class="tile ${c.status}" onclick="location.hash='${s}'">${s}<small>${sub}</small></button>`}).join("");
+  const ratioState=S.ratio==null?"wait":S.ratio<=LIM.ratio?"ok":"bad";
+  const angState=S.err==null?"wait":Math.abs(S.err)<=S.perm?"ok":"bad";
+  const precBad=S.L.filter(l=>l.prec!=null&&l.prec<LIM.prec);
+  const legRows=S.L.map(l=>{
+    const st=l.prec==null?pill("wait",l.fw==null&&l.bw==null?"—":"wait "+(l.fw==null?l.from:l.to)):l.prec>=LIM.prec?pill("ok",precTxt(l.prec)):pill("bad",precTxt(l.prec));
+    const r=S.ratio!=null&&(l===S.maxL||l===S.minL)?(l===S.maxL?" ▲":" ▼"):"";
+    return `<tr><td>${l.from}–${l.to}${r}</td><td>${l.fw??"–"}</td><td>${l.bw??"–"}</td><td>${st}</td></tr>`}).join("");
+  app.innerHTML=`
+  <div class="card"><h2>Overall</h2>
+    <div class="row"><span>Stations done</span><b>${S.done.length} / ${N}</b></div>
+    <div class="row"><span>Sum of angles so far</span><b>${fmt(S.sum)}</b></div>
+    <div class="row"><span>Theoretical (2N−4)×90°</span><b>${S.theo}° 0' 0"</b></div>
+    <div class="row"><span>Angular error (±${Math.round(S.perm*10)/10}" allowed)</span>${S.err==null?pill("wait","after all "+N):pill(angState,(S.err>0?"+":"")+S.err+'"')}</div>
+    <div class="row"><span>Leg ratio max:min (≤ 2:1)</span>${S.ratio==null?pill("wait","need 2 legs"):pill(ratioState,S.ratio.toFixed(2)+" : 1")}</div>
+    ${S.ratio!=null?`<p class="note">Longest ${S.maxL.from}–${S.maxL.to} ${S.maxL.avg.toFixed(3)} m ▲ · shortest ${S.minL.from}–${S.minL.to} ${S.minL.avg.toFixed(3)} m ▼</p>`:""}
+    <div class="row"><span>Legs below 1:${LIM.prec}</span>${precBad.length?pill("bad",precBad.map(l=>l.from+"–"+l.to).join(", ")):pill("ok","none")}</div>
+  </div>
+  <div class="grid">${tiles}</div>
+  <p class="note">Grey: not started · Yellow: partial · Green: passed · Red: re-observe</p>
+  <div class="card" style="margin-top:12px"><h2>Legs (horizontal distance, m)</h2>
+    <table><tr><th>Leg</th><th>FW</th><th>BW</th><th>Precision</th></tr>${legRows}</table>
+    <p class="note">FW = measured at the first station, BW = measured back from the second.</p></div>
+  <div class="card"><h2>Data safety</h2>
+    <div class="btns">
+      <button class="btn pri" onclick="backup()">Save backup file</button>
+      <button class="btn" onclick="shareBackup()">Share backup</button>
+      <button class="btn" onclick="document.getElementById('fileIn').click()">Merge a backup</button>
+      <button class="btn" onclick="exportCSV()">Excel export (CSV)</button>
+    </div>
+    <p class="note">Last saved on this phone: ${esc((localStorage.getItem(KEY+"-t")||"never").replace("T"," ").slice(0,19))} UTC${saveErr?" — SAVE FAILED":""}. Merge only fills empty boxes, it never overwrites.</p>
+    <div class="btns" style="margin-top:10px"><button class="btn" onclick="wipe()">Clear all data…</button></div>
+  </div>`;
+}
+
+function dmsHTML(si,k,v){v=v||["","",""];
+  return `<div class="dms" data-si="${si}" data-k="${k}">
+   <input class="d" inputmode="numeric" enterkeyhint="next" maxlength="3" value="${esc(v[0])}" data-p="0" aria-label="degrees"><i>°</i>
+   <input inputmode="numeric" enterkeyhint="next" maxlength="2" value="${esc(v[1])}" data-p="1" aria-label="minutes"><i>'</i>
+   <input inputmode="numeric" enterkeyhint="next" maxlength="2" value="${esc(v[2])}" data-p="2" aria-label="seconds"><i>"</i></div>`}
+
+function renderStation(s){
+  const i=ST.indexOf(s),st=D[s],bs=bsOf(i),fs=fsOf(i);
+  title.textContent="Station "+s;homeBtn.classList.remove("hidden");
+  const setCard=si=>`<div class="card"><h2>Set ${si===0?"I":"II"}</h2>
+    ${OBS.map(([k,face,t])=>`<div class="obs"><label><b>${face}</b> → ${t==="BS"?bs:fs} <small>(${t})</small></label>${dmsHTML(si,k,st.sets[si][k])}</div>`).join("")}
+    <div id="res${si}" style="margin-top:8px"></div></div>`;
+  app.innerHTML=`
+  <div class="nav"><button class="btn" onclick="location.hash='${bsOf(i)}'">◀ ${bsOf(i)}</button><button class="btn" onclick="location.hash='${fs}'">${fs} ▶</button></div>
+  <div class="card"><div class="row"><span>Back sight</span><b>${bs}</b></div><div class="row"><span>Fore sight</span><b>${fs}</b></div>
+  <p class="note">Interior angle, clockwise from ${bs} to ${fs}.</p></div>
+  ${setCard(0)}${setCard(1)}
+  <div class="card"><h2>Horizontal distance (m)</h2>
+    <div class="dist"><label>${s} → ${bs} <small>(BW of ${bs}–${s})</small></label><input inputmode="decimal" data-dist="dBS" value="${esc(st.dBS)}"></div>
+    <div class="dist"><label>${s} → ${fs} <small>(FW of ${s}–${fs})</small></label><input inputmode="decimal" data-dist="dFS" value="${esc(st.dFS)}"></div>
+    <div id="resD"></div></div>
+  <div class="card"><h2>Result</h2><div id="resF"></div></div>
+  <div class="card"><h2>Note</h2><textarea data-note placeholder="Peg, sketch, remarks…">${esc(st.note)}</textarea></div>
+  <div class="nav"><button class="btn pri" onclick="location.hash=''">Done · all stations</button></div>`;
+  wire();updateStation();
+}
+
+function cellOK(p,val){if(val==="")return true;if(!/^\d+$/.test(val))return false;const n=+val;return p===0?n<360:n<60}
+function wire(){
+  const ins=[...app.querySelectorAll("input")];
+  ins.forEach((el,idx)=>{
+    const next=()=>{const n=ins[idx+1];if(n){n.focus();n.select()}else el.blur()};
+    if(el.parentElement.classList.contains("dms")){
+      const p=+el.dataset.p,box=el.parentElement,si=+box.dataset.si,k=box.dataset.k;
+      el.addEventListener("focus",()=>el.select());
+      el.addEventListener("input",()=>{
+        el.value=el.value.replace(/\D/g,"");
+        const ok=cellOK(p,el.value);el.classList.toggle("err",!ok);
+        const vals=[...box.querySelectorAll("input")].map(x=>x.value);
+        D[cur].sets[si][k]=vals;save();updateStation();
+        // jump when no further digit could keep it valid
+        const v=el.value,max=p===0?359:59,len=p===0?3:2;
+        if(ok&&v!==""&&(v.length>=len||(+v)*10>max))next();
+      });
+      el.addEventListener("keydown",e=>{
+        if(e.key==="Enter"||e.key===" "){e.preventDefault();next()}
+        if(e.key==="Backspace"&&el.value===""&&idx>0&&p>0){e.preventDefault();ins[idx-1].focus()}
+      });
+      el.classList.toggle("err",!cellOK(p,el.value));
+    }else if(el.dataset.dist){
+      el.addEventListener("input",()=>{el.value=el.value.replace(/[^\d.]/g,"");el.classList.toggle("err",el.value!==""&&num(el.value)==null);D[cur][el.dataset.dist]=el.value;save();updateStation()});
+      el.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();next()}});
+    }
+  });
+  const ta=app.querySelector("[data-note]");ta.addEventListener("input",()=>{D[cur].note=ta.value;save()});
+}
+function faceRow(lbl,v){if(v==null)return `<div class="row"><span>${lbl}</span>${pill("wait","—")}</div>`;
+  return `<div class="row"><span>${lbl}</span>${pill(Math.abs(v)<=LIM.face?"ok":"bad","180° "+(v>=0?"+":"−")+Math.abs(v)+'"')}</div>`}
+function updateStation(){
+  const s=cur,i=ST.indexOf(s),c=stCalc(s);
+  [c.a,c.b].forEach((r,si)=>{document.getElementById("res"+si).innerHTML=
+    faceRow("FR−FL on "+bsOf(i)+" (180°±20\")",r.cBS)+faceRow("FR−FL on "+fsOf(i)+" (180°±20\")",r.cFS)+
+    `<div class="row"><span>Face left angle</span><b>${fmt(r.FL)}</b></div><div class="row"><span>Face right angle</span><b>${fmt(r.FR)}</b></div>
+     <div class="row"><span>Set mean</span><b>${fmt(r.mean)}</b></div>`});
+  const L=legs(),lb=L[(i-1+N)%N],lf=L[i];
+  const legRow=(l,lbl)=>`<div class="row"><span>${lbl}</span>${l.prec==null?pill("wait",l.fw==null&&l.bw==null?"—":"other end at "+(l.fw==null?l.from:l.to)):pill(l.prec>=LIM.prec?"ok":"bad",precTxt(l.prec)+" (Δ "+(l.disc*1000).toFixed(0)+" mm)")}</div>`;
+  document.getElementById("resD").innerHTML=legRow(lb,lb.from+"–"+lb.to+" precision ≥1:5000")+legRow(lf,lf.from+"–"+lf.to+" precision ≥1:5000");
+  const sd=c.setDiff;
+  document.getElementById("resF").innerHTML=
+    `<div class="row"><span>Set I vs Set II (≤ 1')</span>${sd==null?pill("wait","—"):pill(sd<=LIM.sets?"ok":"bad",sd+'"')}</div>
+     <div class="row"><span>Mean horizontal angle</span><b style="font-size:20px">${fmt(c.final)}</b></div>
+     <div class="row"><span>Station status</span>${c.status==="ok"?pill("ok","PASS · can move"):c.status==="bad"?pill("bad","RE-OBSERVE"):pill("wait","incomplete")}</div>`;
+}
+
+/* ===== Backup / merge / export ===== */
+function stamp(){const d=new Date(),p=n=>String(n).padStart(2,"0");return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`}
+function blobFile(text,name,type){return new File([text],name,{type})}
+function download(f){const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+function backupFile(){return blobFile(JSON.stringify({app:KEY,saved:new Date().toISOString(),data:D},null,1),`traverse-backup-${stamp()}.json`,"application/json")}
+function backup(){download(backupFile())}
+async function shareBackup(){const f=backupFile();
+  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:f.name})}catch(e){}}else{download(f);alert("Sharing not supported here; file saved to Downloads instead.")}}
+document.getElementById("fileIn").addEventListener("change",async e=>{
+  const f=e.target.files[0];e.target.value="";if(!f)return;
+  try{const j=JSON.parse(await f.text());const src=j.data||j;let n=0,clash=[];
+    for(const s of ST){if(!src[s])continue;const a=D[s],b=src[s];
+      for(const si of[0,1])for(const[k]of OBS){const bv=b.sets&&b.sets[si]&&b.sets[si][k];if(!bv||dec(bv)==null)continue;
+        if(dec(a.sets[si][k])==null){a.sets[si][k]=bv;n++}else if(dec(a.sets[si][k])!==dec(bv))clash.push(s+" set"+(si+1)+" "+k)}
+      for(const k of["dBS","dFS"]){if(num(b[k])==null)continue;if(num(a[k])==null){a[k]=b[k];n++}else if(num(a[k])!==num(b[k]))clash.push(s+" "+k)}
+      if(b.note&&!a.note)a.note=b.note}
+    save();route();alert(`Merged ${n} values.`+(clash.length?`\nDifferent from this phone (kept this phone's): ${clash.join(", ")}`:""));
+  }catch(err){alert("Not a valid backup file.")}
+});
+function wipe(){if(prompt('Type DELETE to clear all data on this phone (make a backup first).')==="DELETE"){backup();D=blank();save();route()}}
+function exportCSV(){
+  const csv=r=>r.map(v=>v==null?"":/[",\n]/.test(v)?`"${String(v).replace(/"/g,'""')}"`:v).join(",");
+  // Sheet 1: HCR in template row order (station, sighted, face, set I D M S, set II D M S)
+  const h=[["Inst St","Sighted To","Face","SetI D","SetI M","SetI S","SetII D","SetII M","SetII S"]];
+  ST.forEach((s,i)=>{const st=D[s];OBS.forEach(([k,face,t],j)=>{const a=st.sets[0][k]||["","",""],b=st.sets[1][k]||["","",""];
+    h.push([j===0?s:"",t==="BS"?bsOf(i):fsOf(i),face==="FL"?"L":"R",a[0],a[1],a[2],b[0],b[1],b[2]])})});
+  // Sheet 2: Linear distance (from, to, forward, backward)
+  const d=[["S.No.","From","To","Forward (FW)","Backward (BW)"]];
+  legs().forEach((l,i)=>d.push([i+1,l.from,l.to,l.fw??"",l.bw??""]));
+  const text="HORIZONTAL ANGLES (paste D M S into template columns E:G and J:L)\n"+h.map(csv).join("\n")+
+    "\n\nLINEAR DISTANCE (paste FW BW into template columns E:F)\n"+d.map(csv).join("\n")+"\n";
+  download(blobFile(text,`traverse-excel-${stamp()}.csv`,"text/csv"));
+}
+if("serviceWorker"in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js");
+route();
+</script>
+</body>
+</html>
