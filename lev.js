@@ -17,32 +17,33 @@ function rd(v){ // staff reading: "1.951" metres, or "1951" millimetres
   if(/^\d+$/.test(v)&&v.length>=4)return +v/1000;
   if(/^\d*\.?\d+$/.test(v)||/^\d+\.$/.test(v))return +v;return null}
 const r3=x=>Math.round(x*1000)/1000;
-function w3(a){ // [T,M,B] -> mean (template: ROUND(AVERAGE,3)), stadia, checks
+function w3(a,mid){ // [T,M,B] -> mean (template: ROUND(AVERAGE,3)), stadia, checks; mid = middle hair only (template loop levelling)
+  if(mid){const m=rd(a&&a[1]);if(m==null)return null;return{t:null,m,b:null,mean:m,s:0,dist:0,chk:0,rng:(m<0.6||m>3.0)?"bad":m>2.0?"warn":"ok",order:true,bad:false,mid:true}}
   const t=rd(a&&a[0]),m=rd(a&&a[1]),b=rd(a&&a[2]);
   if(t==null||m==null||b==null)return null;
   const mean=r3((t+m+b)/3),s=t-b,chk=(t+b)/2-m;
   return{t,m,b,mean,s,dist:s*100,chk,rng:(m<0.6||m>3.0)?"bad":m>2.0?"warn":"ok",order:t>=m&&m>=b,bad:Math.abs(chk)>LIM_LEV.wire+1e-9||!(t>=m&&m>=b)}}
 function lineCalc(L){
-  const rl0=num(L.rl);let rl=rl0,sBS=0,sFS=0,sR=0,sF=0,dist=0;const rows=[];
+  const mid=L.mode==="mid",rl0=num(L.rl);let rl=rl0,sBS=0,sFS=0,sR=0,sF=0,dist=0;const rows=[];
   L.setups.forEach((u,i)=>{
-    const B=w3(u.bs.r),F=w3(u.fs.r);let rise=null,rlF=null,bal=null;
+    const B=w3(u.bs.r,mid),F=w3(u.fs.r,mid);let rise=null,rlF=null,bal=null;
     if(B&&F){rise=r3(B.mean-F.mean);if(rl!=null){rlF=r3(rl+rise)}sBS+=B.mean;sFS+=F.mean;if(rise>=0)sR+=rise;else sF+=-rise}
     if(B)dist+=B.dist;if(F)dist+=F.dist;
-    if(B&&F)bal=Math.abs(B.dist-F.dist);
+    if(B&&F&&!mid)bal=Math.abs(B.dist-F.dist);
     rows.push({B,F,rise,rlBS:rl,rlF,bal,balBad:bal!=null&&bal>LIM_LEV.balance+1e-9});
     rl=(B&&F)?rlF:null;
   });
   const done=rows.length&&rows.every(r=>r.rlF!=null);
   const end=done?rows[rows.length-1].rlF:null,last=L.setups.length?L.setups[L.setups.length-1].fs.p:"";
   let known=null;if(last&&last===L.start)known=rl0;else if(num(L.closeRl)!=null&&last===L.closeP)known=num(L.closeRl);
-  const K=dist/1000,perm=LIM_LEV.k*Math.sqrt(K),err=(done&&known!=null&&rl0!=null)?Math.round((end-known)*1000):null;
+  const K=mid?(num(L.kKm)||0):dist/1000,perm=K?LIM_LEV.k*Math.sqrt(K):null,err=(done&&known!=null&&rl0!=null)?Math.round((end-known)*1000):null;
   // Named points (not TP): adjust by distance, RL_adj = RL - e x (distance to point / total distance).
   // At the turnaround of a there-and-back line this equals the template's mean of forward and backward.
   const tbm=[];
   if(done&&known!=null&&rl0!=null){const eM=end-known;let cum=0;
     L.setups.forEach((u,i)=>{const r=rows[i];cum+=(r.B?r.B.dist:0)+(r.F?r.F.dist:0);const p=u.fs.p;
       if(i===L.setups.length-1||!p||/^TP/i.test(p)||p===L.start)return;
-      const adj=r3(r.rlF-eM*cum/dist),x=tbm.find(q=>q.p===p);
+      const share=mid||!dist?(i+1)/L.setups.length:cum/dist,adj=r3(r.rlF-eM*share),x=tbm.find(q=>q.p===p);
       if(x){x.vals.push(adj);x.adj=r3(x.vals.reduce((a,b)=>a+b,0)/x.vals.length)}else tbm.push({p,raw:r.rlF,vals:[adj],adj})})}
   return{rows,sBS:r3(sBS),sFS:r3(sFS),sR:r3(sR),sF:r3(sF),dist,K,perm,err,end,known,done,rl0,tbm,
     arith:done&&rl0!=null?Math.abs((sBS-sFS)-(sR-sF))<0.0015&&Math.abs((sBS-sFS)-(end-rl0))<0.0015:null};
@@ -54,7 +55,7 @@ function levIssues(L){const c=lineCalc(L),o=[];
     if(r.B&&r.B.rng==="bad")o.push(`Setup ${n} BS: middle reading ${r.B.m.toFixed(3)} m outside 0.6–3.0 m (guideline)`);
     if(r.F&&r.F.rng==="bad")o.push(`Setup ${n} FS: middle reading ${r.F.m.toFixed(3)} m outside 0.6–3.0 m (guideline)`);
     if(r.balBad)o.push(`Setup ${n}: BS ${r.B.dist.toFixed(1)} m vs FS ${r.F.dist.toFixed(1)} m (balance ±1 m)`)});
-  if(c.err!=null&&Math.abs(c.err)>c.perm)o.push(`Closing error ${c.err} mm exceeds ±${c.perm.toFixed(1)} mm`);
+  if(c.err!=null&&c.perm!=null&&Math.abs(c.err)>c.perm)o.push(`Closing error ${c.err} mm exceeds ±${c.perm.toFixed(1)} mm`);
   if(c.arith===false)o.push("Arithmetic check fails (ΣBS−ΣFS ≠ ΣRise−ΣFall)");
   return o}
 function pegCalc(){const P=LEV.peg,a1=w3(P.mid.a),b1=w3(P.mid.b),a2=w3(P.near.a),b2=w3(P.near.b),d=num(P.d);
@@ -95,23 +96,29 @@ function renderLev(h){
     <div class="btns" style="margin-top:8px"><button class="btn pri" onclick="backup()">Save backup</button><button class="btn" onclick="exportCSV()">Excel export</button></div>
     <div class="btns" style="margin-top:10px"><button class="btn" onclick="clearLev()">Clear levelling data…</button></div></div>`;
 }
+function knownRL(p,self){if(!p)return null;for(const L of LEV.lines){if(L===self)continue;const c=lineCalc(L);const x=c.tbm.find(q=>q.p===p);if(x)return{rl:x.adj,line:L.name}}return null}
+function useKnown(){const k=knownRL(levCur.start,levCur);if(k){levCur.rl=k.rl.toFixed(3);levSave();renderLine(levCur)}}
+function setLevMode(m){if(levCur.setups.length&&!confirm("Switch reading mode for this line? Readings already typed stay saved."))return;levCur.mode=m;levSave();renderLine(levCur)}
 function addLine(){const n=LEV.lines.length+1;const L={id:newId(),name:"Line "+n,start:"BM",rl:"",closeP:"",closeRl:"",setups:[]};
   LEV.lines.push(L);levSave();location.hash="lev/"+L.id}
-function tmbHTML(path,v){v=v||[];return `<div class="tmb" data-path="${path}">${["T","M","B"].map((l,p)=>`<input inputmode="decimal" enterkeyhint="next" placeholder="${l}" data-p="${p}" value="${esc(v[p]??"")}">`).join("")}</div>`}
+function tmbHTML(path,v,mid){v=v||[];return `<div class="tmb" data-path="${path}">${(mid?[["M",1]]:[["T",0],["M",1],["B",2]]).map(([l,p])=>`<input inputmode="decimal" enterkeyhint="next" placeholder="${l}" data-p="${p}" value="${esc(v[p]??"")}">`).join("")}</div>`}
 function renderLine(L){
   levCur=L;levLast=null;backTo="lev";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Lines";
-  title.innerHTML=`${esc(L.name)}<small>Fly levelling · 3-wire</small>`;
+  title.innerHTML=`${esc(L.name)}<small>${L.mode==="mid"?"Levelling · middle hair":"Fly levelling · 3-wire"}</small>`;
   const setups=L.setups.map((u,i)=>`<div class="card" id="su${i}"><h2>Setup ${i+1}</h2>
-    <div class="obs"><label><b>BS</b> → ${esc(u.bs.p||"?")}</label>${tmbHTML(i+".bs",u.bs.r)}</div>
-    <div class="obs"><label><b>FS</b> → <input class="pt" data-pt="${i}" value="${esc(u.fs.p)}" maxlength="10"></label>${tmbHTML(i+".fs",u.fs.r)}</div>
+    <div class="obs"><label><b>BS</b> → ${esc(u.bs.p||"?")}</label>${tmbHTML(i+".bs",u.bs.r,L.mode==="mid")}</div>
+    <div class="obs"><label><b>FS</b> → <input class="pt" data-pt="${i}" value="${esc(u.fs.p)}" maxlength="10"></label>${tmbHTML(i+".fs",u.fs.r,L.mode==="mid")}</div>
     <div id="sr${i}"></div></div>`).join("");
   app.innerHTML=`<div id="lbanner"></div>
   <div class="card"><h2>Line</h2>
-    <div class="row"><span>Name</span><input class="cfgin" data-f="name" value="${esc(L.name)}"></div>
-    <div class="row"><span>Start point (BM)</span><input class="cfgin" data-f="start" value="${esc(L.start)}"></div>
-    <div class="row"><span>RL of start (m)</span><input class="cfgin" inputmode="decimal" data-f="rl" value="${esc(L.rl)}" placeholder="1312.034"></div>
-    <div class="row"><span>Close on other BM</span><input class="cfgin" data-f="closeP" value="${esc(L.closeP)}" placeholder="(blank = start)"></div>
-    <div class="row"><span>Its RL (m)</span><input class="cfgin" inputmode="decimal" data-f="closeRl" value="${esc(L.closeRl)}" placeholder="only if other BM"></div>
+    <div class="row"><span>Name</span><input class="cfgin" data-f="name" value="${esc(L.name||"")}"></div>
+    <div class="row"><span>Start point (BM or station)</span><input class="cfgin" data-f="start" value="${esc(L.start||"")}"></div>
+    <div class="row"><span>RL of start (m)</span><input class="cfgin" inputmode="decimal" data-f="rl" value="${esc(L.rl||"")}" placeholder="1312.034"></div>
+    ${(()=>{const k=knownRL(L.start,L);return k&&String(k.rl)!==String(L.rl)?`<div class="btns" style="margin:6px 0"><button class="btn" onclick="useKnown()">Use RL ${k.rl.toFixed(3)} of ${esc(L.start)} from “${esc(k.line)}”</button></div>`:""})()}
+    <div class="row"><span>Readings</span><div class="seg" style="width:210px"><button class="${L.mode!=="mid"?"on":""}" onclick="setLevMode('3w')">3-wire</button><button class="${L.mode==="mid"?"on":""}" onclick="setLevMode('mid')">Middle only</button></div></div>
+    ${L.mode==="mid"?`<div class="row"><span>Loop length K (km)</span><input class="cfgin" inputmode="decimal" data-f="kKm" value="${esc(L.kKm||"")}" placeholder="0.516"></div><p class="note">Middle hair only (template loop sheet): no stadia, so enter the loop length (pace or from the traverse legs) for ±24√K. Error is spread equally over the setups.</p>`:""}
+    <div class="row"><span>Close on other BM</span><input class="cfgin" data-f="closeP" value="${esc(L.closeP||"")}" placeholder="(blank = start)"></div>
+    <div class="row"><span>Its RL (m)</span><input class="cfgin" inputmode="decimal" data-f="closeRl" value="${esc(L.closeRl||"")}" placeholder="only if other BM"></div>
     <p class="note">Coming back to the start point closes the line automatically: name the last FS point the same as the start.</p></div>
   ${setups}
   <div class="btns" style="margin-bottom:14px"><button class="btn pri" onclick="addSetup()">+ Add setup</button>${L.setups.length?`<button class="btn" onclick="closeToStart()">Last FS = ${esc(L.start)}</button>`:""}</div>
@@ -130,8 +137,9 @@ function wireLine(){
       if(/^\d\.\d{3}$/.test(el.value)||/^\d{4}$/.test(el.value))next()});
     el.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();next()}});
   });
+  app.querySelectorAll("[data-f]").forEach(el=>el.addEventListener("change",()=>{if(el.dataset.f==="start")renderLine(L)}));
   app.querySelectorAll("[data-f]").forEach(el=>el.addEventListener("input",()=>{L[el.dataset.f]=el.value.trim();levSave();updateLine();
-    if(el.dataset.f==="name")title.innerHTML=`${esc(L.name)}<small>Fly levelling · 3-wire</small>`;
+    if(el.dataset.f==="name")title.innerHTML=`${esc(L.name)}<small>${L.mode==="mid"?"Levelling · middle hair":"Fly levelling · 3-wire"}</small>`;
     if(el.dataset.f==="start"&&L.setups[0]){L.setups[0].bs.p=L.start;levSave()}}));
   app.querySelectorAll("[data-pt]").forEach(el=>el.addEventListener("input",()=>{const i=+el.dataset.pt;el.value=el.value.toUpperCase();L.setups[i].fs.p=el.value.trim();
     if(L.setups[i+1])L.setups[i+1].bs.p=L.setups[i].fs.p;levSave();
@@ -145,7 +153,7 @@ function closeToStart(){const L=levCur,u=L.setups[L.setups.length-1];u.fs.p=L.st
 function delSetup(){const L=levCur;if(confirm("Delete setup "+L.setups.length+" and its readings?")){L.setups.pop();levSave();renderLine(L)}}
 function delLine(){const L=levCur;if(prompt('Type DELETE to remove "'+L.name+'" and all its readings.')==="DELETE"){LEV.lines=LEV.lines.filter(x=>x!==L);levSave();location.hash="lev"}}
 const fm=x=>x==null?"–":x.toFixed(3);
-function wRow(lbl,w,rng){if(!w)return "";return `<div class="row"><span>${lbl} mean ${fm(w.mean)} · ${w.dist.toFixed(1)} m</span>${w.bad?pill("bad",!w.order?"T≥M≥B?":(w.chk>0?"+":"")+(w.chk*1000).toFixed(1)+" mm"):pill("ok","3-wire ✓")}</div>`+
+function wRow(lbl,w,rng){if(!w)return "";if(w.mid)return `<div class="row"><span>${lbl} middle ${w.m.toFixed(3)} m</span>${w.rng==="bad"?pill("bad","outside 0.6–3.0 m"):w.rng==="warn"?pill("warn","prefer 0.6–2 m"):pill("ok","✓")}</div>`;return `<div class="row"><span>${lbl} mean ${fm(w.mean)} · ${w.dist.toFixed(1)} m</span>${w.bad?pill("bad",!w.order?"T≥M≥B?":(w.chk>0?"+":"")+(w.chk*1000).toFixed(1)+" mm"):pill("ok","3-wire ✓")}</div>`+
   (rng&&w.rng!=="ok"?`<div class="row"><span>${lbl} middle ${w.m.toFixed(3)} m</span>${w.rng==="bad"?pill("bad","outside 0.6–3.0 m"):pill("warn","prefer 0.6–2 m")}</div>`:"")}
 function updateLine(){
   const L=levCur,c=lineCalc(L),is=levIssues(L);
@@ -154,18 +162,18 @@ function updateLine(){
     (r.bal!=null?`<div class="row"><span>Sight balance (±1 m)</span>${pill(r.balBad?"bad":"ok","Δ "+r.bal.toFixed(1)+" m")}</div>`:"")+
     (r.rise!=null?`<div class="row"><span>${r.rise>=0?"Rise":"Fall"}</span><b>${Math.abs(r.rise).toFixed(3)}</b></div>`:"")+
     `<div class="row"><span>RL of ${esc(L.setups[i].fs.p||"FS")}</span><span class="big">${fm(r.rlF)}</span></div>`});
-  const closeTxt=c.err==null?pill("wait",c.done?(c.known==null?"close on a known BM":"enter start RL"):"incomplete"):pill(Math.abs(c.err)<=c.perm?"ok":"bad",(c.err>0?"+":"")+c.err+" mm");
+  const closeTxt=c.err!=null&&c.perm==null?pill("wait",(c.err>0?"+":"")+c.err+" mm · enter K"):c.err==null?pill("wait",c.done?(c.known==null?"close on a known BM":"enter start RL"):"incomplete"):pill(Math.abs(c.err)<=c.perm?"ok":"bad",(c.err>0?"+":"")+c.err+" mm");
   document.getElementById("lsum").innerHTML=
    `<div class="row"><span>ΣBS / ΣFS</span><b>${fm(c.sBS)} / ${fm(c.sFS)}</b></div>
     <div class="row"><span>ΣRise / ΣFall</span><b>${fm(c.sR)} / ${fm(c.sF)}</b></div>
     <div class="row"><span>Arithmetic check</span>${c.arith==null?pill("wait","—"):pill(c.arith?"ok":"bad",c.arith?"ΣBS−ΣFS = ΣR−ΣF = ΔRL":"mismatch")}</div>
-    <div class="row"><span>Distance K</span><b>${c.dist.toFixed(1)} m = ${c.K.toFixed(4)} km</b></div>
-    <div class="row"><span>Permissible ±24√K</span><b>±${c.perm.toFixed(1)} mm</b></div>
+    <div class="row"><span>Distance K</span><b>${L.mode==="mid"?(c.K?c.K.toFixed(3)+" km (entered)":"enter loop length"):c.dist.toFixed(1)+" m = "+c.K.toFixed(4)+" km"}</b></div>
+    <div class="row"><span>Permissible ±24√K</span><b>${c.perm==null?"—":"±"+c.perm.toFixed(1)+" mm"}</b></div>
     <div class="row"><span>Closing error</span>${closeTxt}</div>
-    ${c.tbm.length?`<div class="row"><span><b>Adjusted RLs</b> (closing error spread by distance)</span><span></span></div>`:""}${c.tbm.map(t=>`<div class="row"><span>${esc(t.p)}${t.vals.length>1?" · visited "+t.vals.length+"×, averaged":""}</span><span class="big">${t.adj.toFixed(3)}</span></div>`).join("")}`;
+    ${c.tbm.length?`<div class="row"><span><b>Adjusted RLs</b> (error spread ${L.mode==="mid"?"equally per setup":"by distance"})</span><span></span></div>`:""}${c.tbm.map(t=>`<div class="row"><span>${esc(t.p)}${t.vals.length>1?" · visited "+t.vals.length+"×, averaged":""}</span><span class="big">${t.adj.toFixed(3)}</span></div>`).join("")}`;
   document.getElementById("lbanner").innerHTML=is.length?`<div class="alarm"><h4>⚠ ${is.length} warning${is.length>1?"s":""}</h4><ul>${is.map(x=>`<li>${x}</li>`).join("")}</ul></div>`:
-    (c.err!=null?`<div class="passbar">✓ Line closed within ±${c.perm.toFixed(1)} mm</div>`:"");
-  const st=is.length?"bad":c.err!=null?"ok":"part";
+    (c.err!=null&&c.perm!=null?`<div class="passbar">✓ Line closed within ±${c.perm.toFixed(1)} mm</div>`:"");
+  const st=is.length?"bad":c.err!=null&&c.perm!=null?"ok":"part";
   if(levLast!==null&&st!==levLast){if(st==="bad")toast("⚠ Levelling check failed",true);else if(st==="ok")toast("✓ Line closed")}
   levLast=st;
 }

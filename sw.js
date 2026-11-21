@@ -1,4 +1,4 @@
-const C="trav-v13",F=["./","index.html","manifest.json","icon.svg","inter.woff2","lev.js"];
+const C="trav-v14",F=["./","index.html","manifest.json","icon.svg","inter.woff2","lev.js"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(F)));self.skipWaiting()});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))));self.clients.claim()});
 // cache first (works offline), refresh cache in background when online
