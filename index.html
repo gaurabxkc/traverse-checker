@@ -93,6 +93,19 @@ tr.badrow td{background:var(--badbg)}
 .toast.show{transform:translateX(-50%) translateY(0)}
 .toast.bad{background:var(--bad)}
 .hidden{display:none}
+.hubhead{margin:4px 4px 14px}.hubhead h3{margin:0;font-size:24px;font-weight:900;letter-spacing:-.3px}.hubhead p{margin:4px 0 0;color:var(--mut);font-size:14px}
+.wcard{width:100%;display:flex;align-items:center;gap:14px;text-align:left;padding:16px;margin-bottom:12px;border:1px solid var(--line);border-radius:22px;background:var(--card);color:var(--ink);box-shadow:var(--shadow);transition:transform .12s}
+.wcard:active{transform:scale(.98)}
+.wic{flex:none;width:52px;height:52px;border-radius:16px;background:var(--hero);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900}
+.wtx{flex:1;min-width:0}.wtx b{display:block;font-size:18px;font-weight:900}.wtx small{display:block;color:var(--mut);font-size:13px;margin-top:2px}
+.wgo{font-size:30px;color:var(--mut);font-weight:300}
+.bar{height:6px;border-radius:99px;background:var(--bg2);margin-top:8px;overflow:hidden}.bar i{display:block;height:100%;background:linear-gradient(90deg,#facc15,#14b8a6);border-radius:99px}
+.wcard.bad{border:2px solid var(--bad);background:var(--badbg)}.wcard.ok{border:2px solid var(--ok)}
+.wcard.soon{opacity:.5;box-shadow:none}.wcard.soon .wic{background:var(--bg2);color:var(--mut)}
+.tmb{display:flex;gap:4px}.tmb input{width:72px;font-size:19px;font-weight:700;padding:9px 2px;text-align:center;border:1.5px solid var(--line);border-radius:12px;background:var(--input);color:var(--ink)}
+input.pt{width:84px;font:inherit;font-weight:800;font-size:15px;padding:4px 6px;border:1.5px solid var(--line);border-radius:8px;background:var(--input);color:var(--ink);text-transform:uppercase}
+.lcard{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;padding:14px;margin-bottom:10px;border:1px solid var(--line);border-radius:16px;background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.lcard b{font-size:17px;font-weight:900;display:block}.lcard small{color:var(--mut);font-size:13px}.lcard.bad{border:2px solid var(--bad);background:var(--badbg)}
 .cfgin{width:150px;font:inherit;font-weight:700;font-size:16px;padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--input);color:var(--ink);text-align:right}
 .step{display:flex;align-items:center;gap:10px}.step button{width:42px;height:42px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:22px;font-weight:800}.step b{min-width:28px;text-align:center;font-size:20px}
 body.sysfont{font-family:system-ui,Roboto,"Segoe UI",sans-serif}
@@ -106,6 +119,7 @@ body.sysfont{font-family:system-ui,Roboto,"Segoe UI",sans-serif}
 <header><h1 id="title">Major Traverse</h1><button id="guideBtn">Guide</button><button id="homeBtn" class="hidden">◀ All</button></header>
 <main id="app"></main>
 <input type="file" id="fileIn" accept=".json,application/json" class="hidden">
+<script src="lev.js"></script>
 <script>
 "use strict";
 /* ===== Config: loop CP1 -> CP2 -> M1..M16 -> CP1, interior angles clockwise, 2 sets ===== */
@@ -189,9 +203,9 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",
 const pill=(state,txt)=>`<span class="pill ${state}">${txt}</span>`;
 function precTxt(p){return p===Infinity?"1/∞":"1/"+Math.round(p)}
 let cur=null,lastStatus=null;
-homeBtn.onclick=()=>{location.hash=""};guideBtn.onclick=()=>{location.hash="guide"};
+let backTo="";homeBtn.onclick=()=>{location.hash=backTo};guideBtn.onclick=()=>{location.hash="guide"};
 window.addEventListener("hashchange",route);
-function route(){const h=decodeURIComponent(location.hash.slice(1));cur=ST.includes(h)?h:null;lastStatus=null;guideBtn.classList.remove("hidden");cur?renderStation(cur):h==="guide"?renderGuide():renderHome();window.scrollTo(0,0)}
+function route(){const h=decodeURIComponent(location.hash.slice(1));cur=ST.includes(h)?h:null;lastStatus=null;backTo="";homeBtn.textContent="◀ All";guideBtn.classList.remove("hidden");if(h==="lev"||h.startsWith("lev/")){renderLev(h);window.scrollTo(0,0);return}if(h===""){renderHub();window.scrollTo(0,0);return}backTo=h==="trav"?"":"trav";homeBtn.textContent=h==="trav"?"◀ Home":"◀ All";cur?renderStation(cur):h==="guide"?renderGuide():renderHome();window.scrollTo(0,0)}
 function toast(msg,bad){let t=document.querySelector(".toast");if(!t){t=document.createElement("div");t.className="toast";document.body.appendChild(t)}
   t.textContent=msg;t.classList.toggle("bad",!!bad);requestAnimationFrame(()=>t.classList.add("show"));clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),2600);
   if(navigator.vibrate)navigator.vibrate(bad?[200,80,200,80,200]:[60,40,60])}
@@ -274,12 +288,12 @@ function renderGuide(){
       <li>Correcting data: strike once, write the new value above. Never overwrite.</li>
     </ul>
   </div>
-  <div class="nav"><button class="btn pri" onclick="location.hash=''">All stations</button></div>`;
+  <div class="nav"><button class="btn pri" onclick="location.hash='trav'">All stations</button></div>`;
 }
 
 function sysFont(){try{return localStorage.getItem("trav-font")==="system"}catch(e){return false}}
 function applyFont(){document.body.classList.toggle("sysfont",sysFont())}
-function setFont(sys){try{localStorage.setItem("trav-font",sys?"system":"app")}catch(e){}applyFont();renderHome()}
+function setFont(sys){try{localStorage.setItem("trav-font",sys?"system":"app")}catch(e){}applyFont();route()}
 function stepM(d){const el=document.getElementById("cfgM");el.textContent=Math.max(1,Math.min(60,+el.textContent+d))}
 function saveCfg(){
   const group=document.getElementById("cfgGroup").value.trim();
@@ -291,10 +305,39 @@ function saveCfg(){
   const hidden=ST.filter(s=>!names.includes(s)&&D[s]&&(D[s].dBS||D[s].dFS||D[s].sets.some(x=>Object.keys(x).length)));
   if(hidden.length&&!confirm("These stations have readings and will be hidden (not deleted): "+hidden.join(", ")+"\nContinue?"))return;
   try{localStorage.setItem(CFG_KEY,JSON.stringify({group,cps,m}))}catch(e){alert("Could not save setup.");return}
-  location.hash="";location.reload();
+  location.hash="trav";location.reload();
+}
+function renderHub(){
+  backTo="";homeBtn.classList.add("hidden");guideBtn.classList.remove("hidden");
+  title.innerHTML=`Survey Camp<small>${CFG.group?"Group "+esc(CFG.group)+" · ":""}field checker</small>`;
+  const S=summary(),tb=ST.filter(s=>issues(s).length).length+((S.ratio!=null&&S.ratio>LIM.ratio)||(S.err!=null&&Math.abs(S.err)>S.perm)?1:0);
+  const pc=pegCalc(),lw=LEV.lines.reduce((n,L)=>n+levIssues(L).length,0),lc=LEV.lines.filter(L=>lineCalc(L).err!=null).length;
+  const pct=Math.round(100*S.done.length/N);
+  const work=(href,icon,name,sub,state,prog)=>`<button class="wcard ${state}" ${href?`onclick="location.hash='${href}'"`:"disabled"}>
+    <div class="wic">${icon}</div><div class="wtx"><b>${name}</b><small>${sub}</small>${prog!=null?`<div class="bar"><i style="width:${prog}%"></i></div>`:""}</div><span class="wgo">${href?"›":""}</span></button>`;
+  app.innerHTML=`
+  <div class="hubhead"><h3>Today's work</h3><p>Tap a job. Every reading saves on this phone as you type.</p></div>
+  ${work("trav","⌖","Major Traverse",`${S.done.length} / ${N} stations${tb?" · "+tb+" warning"+(tb>1?"s":""):S.err!=null?" · closed "+S.err+"″":""}`,tb?"bad":S.done.length===N?"ok":"",pct)}
+  ${work("lev","≋","Fly Levelling",`${LEV.lines.length} line${LEV.lines.length===1?"":"s"}${lc?" · "+lc+" closed":""} · two peg ${pc.ok==null?"not done":pc.ok?"✓":"✗"}${lw?" · "+lw+" warning"+(lw>1?"s":""):""}`,lw||pc.ok===false?"bad":"",null)}
+  <p class="note" style="margin:14px 4px 8px">Coming next (per camp schedule)</p>
+  ${work("","◇","Minor Traverse","1:3000 · ±1′√n · one set","soon",null)}
+  ${work("","▦","Detailing","Total station / tacheometry · Day 4–5","soon",null)}
+  ${work("","⌒","Bridge Site Survey","Triangulation · reciprocal levelling · Day 6–7","soon",null)}
+  ${work("","⟿","Road Alignment","Curves · L-section · X-section · Day 8–9","soon",null)}
+  <div class="card" style="margin-top:14px"><h2>Data safety</h2>
+    <div class="btns">
+      <button class="btn pri" onclick="backup()">Save backup</button>
+      <button class="btn" onclick="shareBackup()">Share backup</button>
+      <button class="btn" onclick="document.getElementById('fileIn').click()">Merge backup</button>
+      <button class="btn" onclick="exportCSV()">Excel export</button>
+    </div>
+    <p class="note">One backup holds every job. Last saved: ${esc((localStorage.getItem(KEY+"-t")||"never").replace("T"," ").slice(0,19))} UTC.</p></div>
+  <div class="card"><h2>Font</h2>
+    <div class="seg"><button class="${sysFont()?"":"on"}" onclick="setFont(false)">App (Inter)</button><button class="${sysFont()?"on":""}" style="font-family:system-ui,Roboto,sans-serif" onclick="setFont(true)">System</button></div></div>
+`;
 }
 function renderHome(){
-  title.innerHTML=`Major Traverse<small>${CFG.group?"Group "+esc(CFG.group)+" · ":""}${ST[0]} → ${ST[N-1]} → ${ST[0]}</small>`;homeBtn.classList.add("hidden");
+  title.innerHTML=`Major Traverse<small>${CFG.group?"Group "+esc(CFG.group)+" · ":""}${ST[0]} → ${ST[N-1]} → ${ST[0]}</small>`;homeBtn.classList.remove("hidden");
   const S=summary(),[h3,p]=motto(S);
   const bad=ST.map(s=>[s,issues(s)]).filter(x=>x[1].length);
   const ratioBad=S.ratio!=null&&S.ratio>LIM.ratio,angBad=S.err!=null&&Math.abs(S.err)>S.perm;
@@ -335,8 +378,6 @@ function renderHome(){
     <p class="note" id="cfgSum">Loop: ${ST[0]} → … → ${ST[N-1]} → ${ST[0]} · ${N} stations</p>
     <div class="btns" style="margin-top:8px"><button class="btn pri" onclick="saveCfg()">Apply setup</button></div>
     <p class="note">Changing this never deletes readings. Stations you remove are hidden and come back if you add them again.</p></div>
-  <div class="card"><h2>Font</h2>
-    <div class="seg"><button class="${sysFont()?"":"on"}" onclick="setFont(false)">App (Inter)</button><button class="${sysFont()?"on":""}" style="font-family:system-ui,Roboto,sans-serif" onclick="setFont(true)">System</button></div></div>
   <div class="card"><h2>Data safety</h2>
     <div class="btns">
       <button class="btn pri" onclick="backup()">Save backup</button>
@@ -372,7 +413,7 @@ function renderStation(s){
   <div class="card"><h2>Result</h2><div id="resF"></div></div>
   <div class="card"><h2>Note</h2><textarea data-note placeholder="Peg, sketch, remarks…">${esc(st.note)}</textarea></div>
   <div class="nav"><button class="btn" onclick="location.hash='${bs}'">◀ ${bs}</button><button class="btn" onclick="location.hash='${fs}'">${fs} ▶</button></div>
-  <div class="nav"><button class="btn pri" onclick="location.hash=''">All stations</button></div>`;
+  <div class="nav"><button class="btn pri" onclick="location.hash='trav'">All stations</button></div>`;
   wire();updateStation();
 }
 function cellOK(p,val){if(val==="")return true;if(!/^\d+$/.test(val))return false;const n=+val;return p===0?n<360:n<60}
@@ -434,7 +475,7 @@ function updateStation(){
 function stamp(){const d=new Date(),p=n=>String(n).padStart(2,"0");return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`}
 function blobFile(text,name,type){return new File([text],name,{type})}
 function download(f){const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
-function backupFile(){return blobFile(JSON.stringify({app:KEY,saved:new Date().toISOString(),config:CFG,data:D},null,1),`traverse-backup-${stamp()}.json`,"application/json")}
+function backupFile(){return blobFile(JSON.stringify({app:KEY,saved:new Date().toISOString(),config:CFG,data:D,lev:LEV},null,1),`traverse-backup-${stamp()}.json`,"application/json")}
 function backup(){download(backupFile())}
 async function shareBackup(){const f=backupFile();
   if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:f.name})}catch(e){}}else{download(f);alert("Sharing not supported here; file saved to Downloads instead.")}}
@@ -446,10 +487,10 @@ document.getElementById("fileIn").addEventListener("change",async e=>{
         if(dec(a.sets[si][k])==null){a.sets[si][k]=bv;n++}else if(dec(a.sets[si][k])!==dec(bv))clash.push(s+" set"+(si+1)+" "+k)}
       for(const k of["dBS","dFS"]){if(num(b[k])==null)continue;if(num(a[k])==null){a[k]=b[k];n++}else if(num(a[k])!==num(b[k]))clash.push(s+" "+k)}
       if(b.note&&!a.note)a.note=b.note}
-    save();route();alert(`Merged ${n} values.`+(clash.length?`\nDifferent from this phone (kept this phone's): ${clash.join(", ")}`:""));
+    n+=levMerge(j.lev);save();route();alert(`Merged ${n} values.`+(clash.length?`\nDifferent from this phone (kept this phone's): ${clash.join(", ")}`:""));
   }catch(err){alert("Not a valid backup file.")}
 });
-function wipe(){if(prompt('Type DELETE to clear all data on this phone (make a backup first).')==="DELETE"){backup();D=blank();save();route()}}
+function wipe(){if(prompt('Type DELETE to clear all data on this phone (make a backup first).')==="DELETE"){backup();D=blank();save();LEV={lines:[],peg:{d:"",mid:{a:[],b:[]},near:{a:[],b:[]}}};levSave();route()}}
 function exportCSV(){
   const csv=r=>r.map(v=>v==null?"":/[",\n]/.test(v)?`"${String(v).replace(/"/g,'""')}"`:v).join(",");
   // Sheet 1: HCR in template row order (station, sighted, face, set I D M S, set II D M S)
@@ -460,7 +501,7 @@ function exportCSV(){
   const d=[["S.No.","From","To","Forward (FW)","Backward (BW)"]];
   legs().forEach((l,i)=>d.push([i+1,l.from,l.to,l.fw??"",l.bw??""]));
   const text="HORIZONTAL ANGLES (paste D M S into template columns E:G and J:L)\n"+h.map(csv).join("\n")+
-    "\n\nLINEAR DISTANCE (paste FW BW into template columns E:F)\n"+d.map(csv).join("\n")+"\n";
+    "\n\nLINEAR DISTANCE (paste FW BW into template columns E:F)\n"+d.map(csv).join("\n")+"\n"+levCSV(csv);
   download(blobFile(text,`traverse-excel-${stamp()}.csv`,"text/csv"));
 }
 if("serviceWorker"in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js");
