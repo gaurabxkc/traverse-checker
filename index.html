@@ -93,6 +93,8 @@ tr.badrow td{background:var(--badbg)}
 .toast.show{transform:translateX(-50%) translateY(0)}
 .toast.bad{background:var(--bad)}
 .hidden{display:none}
+.cfgin{width:150px;font:inherit;font-weight:700;font-size:16px;padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--input);color:var(--ink);text-align:right}
+.step{display:flex;align-items:center;gap:10px}.step button{width:42px;height:42px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:22px;font-weight:800}.step b{min-width:28px;text-align:center;font-size:20px}
 body.sysfont{font-family:system-ui,Roboto,"Segoe UI",sans-serif}
 .seg{display:flex;background:var(--bg2);border-radius:14px;padding:4px;gap:4px}.seg button{flex:1;border:0;background:transparent;color:var(--mut);padding:10px;border-radius:10px;font-weight:800;font-size:15px}.seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
 .gstep{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}.gstep:last-child{border-bottom:0}
@@ -107,7 +109,9 @@ body.sysfont{font-family:system-ui,Roboto,"Segoe UI",sans-serif}
 <script>
 "use strict";
 /* ===== Config: loop CP1 -> CP2 -> M1..M16 -> CP1, interior angles clockwise, 2 sets ===== */
-const ST = ["CP1","CP2"].concat(Array.from({length:16},(_,i)=>"M"+(i+1)));
+const CFG_KEY="trav-config-v1",CFG_DEF={group:"07",cps:["CP1","CP2"],m:16};
+let CFG;try{CFG=Object.assign({},CFG_DEF,JSON.parse(localStorage.getItem(CFG_KEY))||{})}catch(e){CFG=Object.assign({},CFG_DEF)}
+const ST = CFG.cps.concat(Array.from({length:CFG.m},(_,i)=>"M"+(i+1)));
 const N = ST.length;
 const KEY = "trav-major-v1";
 const LIM = {face:20, sets:60, prec:5000, ratio:2, angK:30}; // seconds, seconds, 1:x, max:min, 30"√n
@@ -208,7 +212,7 @@ function ring(done){const r=50,C=2*Math.PI*r,f=done/N;
   <div class="n">${done}<small>of ${N}</small></div></div>`}
 function motto(S){const d=S.done.length,left=N-d;
   if(S.err!=null)return Math.abs(S.err)<=S.perm?["Traverse closed","Error "+S.err+"″ within ±"+Math.round(S.perm)+"″. Brilliant work."]:["All observed","Closing error "+S.err+"″ exceeds ±"+Math.round(S.perm)+"″. Find the bad station."];
-  if(d===0)return["Let's go, Group 07",N+" stations to conquer today."];
+  if(d===0)return["Let's go"+(CFG.group?", Group "+esc(CFG.group):""),N+" stations to conquer today."];
   if(d<N/2)return[d+" down, "+left+" to go","Steady pace beats rushing."];
   if(left>3)return["Past halfway","Only "+left+" stations left."];
   return["Final stretch",left+" more and the loop closes."]}
@@ -245,8 +249,8 @@ function renderGuide(){
     <div class="row"><span>FW vs BW distance (EDM)</span><b>≥ 1 : 5000</b></div>
     <div class="row"><span>e.g. 80 m leg</span><b>Δ ≤ 16 mm</b></div>
     <div class="row"><span>Max : min leg</span><b>≤ 2 : 1</b></div>
-    <div class="row"><span>Angular closure, N = 18</span><b>±30″√N = ±127″</b></div>
-    <div class="row"><span>Interior sum, N = 18</span><b>2880°</b></div>
+    <div class="row"><span>Angular closure, N = ${N}</span><b>±30″√N = ±${Math.round(30*Math.sqrt(N))}″</b></div>
+    <div class="row"><span>Interior sum, N = ${N}</span><b>${(2*N-4)*90}°</b></div>
     <div class="row"><span>Linear closure (evening, Gale table)</span><b>≥ 1 : 5000</b></div>
   </div>
   <div class="card"><h2>5 · Before you pack up</h2>
@@ -276,8 +280,21 @@ function renderGuide(){
 function sysFont(){try{return localStorage.getItem("trav-font")==="system"}catch(e){return false}}
 function applyFont(){document.body.classList.toggle("sysfont",sysFont())}
 function setFont(sys){try{localStorage.setItem("trav-font",sys?"system":"app")}catch(e){}applyFont();renderHome()}
+function stepM(d){const el=document.getElementById("cfgM");el.textContent=Math.max(1,Math.min(60,+el.textContent+d))}
+function saveCfg(){
+  const group=document.getElementById("cfgGroup").value.trim();
+  const cps=document.getElementById("cfgCps").value.split(/[,\s]+/).map(x=>x.trim().toUpperCase()).filter(Boolean);
+  const m=+document.getElementById("cfgM").textContent;
+  const names=cps.concat(Array.from({length:m},(_,i)=>"M"+(i+1)));
+  if(names.length<3){alert("A loop needs at least 3 stations.");return}
+  if(new Set(names).size!==names.length){alert("Station names must be unique (common points can't be named M1, M2…).");return}
+  const hidden=ST.filter(s=>!names.includes(s)&&D[s]&&(D[s].dBS||D[s].dFS||D[s].sets.some(x=>Object.keys(x).length)));
+  if(hidden.length&&!confirm("These stations have readings and will be hidden (not deleted): "+hidden.join(", ")+"\nContinue?"))return;
+  try{localStorage.setItem(CFG_KEY,JSON.stringify({group,cps,m}))}catch(e){alert("Could not save setup.");return}
+  location.hash="";location.reload();
+}
 function renderHome(){
-  title.innerHTML="Major Traverse<small>Group 07 · CP1 → M16 → CP1</small>";homeBtn.classList.add("hidden");
+  title.innerHTML=`Major Traverse<small>${CFG.group?"Group "+esc(CFG.group)+" · ":""}${ST[0]} → ${ST[N-1]} → ${ST[0]}</small>`;homeBtn.classList.add("hidden");
   const S=summary(),[h3,p]=motto(S);
   const bad=ST.map(s=>[s,issues(s)]).filter(x=>x[1].length);
   const ratioBad=S.ratio!=null&&S.ratio>LIM.ratio,angBad=S.err!=null&&Math.abs(S.err)>S.perm;
@@ -311,6 +328,13 @@ function renderHome(){
   <div class="card"><h2>Legs · horizontal distance (m)</h2>
     <table><tr><th>Leg</th><th>FW</th><th>BW</th><th>Precision</th></tr>${legRows}</table>
     <p class="note">FW measured at the first station, BW measured back from the second.</p></div>
+  <div class="card"><h2>Traverse setup</h2>
+    <div class="row"><span>Group</span><input id="cfgGroup" class="cfgin" value="${esc(CFG.group)}" maxlength="12"></div>
+    <div class="row"><span>Common points</span><input id="cfgCps" class="cfgin" value="${esc(CFG.cps.join(", "))}" placeholder="CP1, CP2"></div>
+    <div class="row"><span>Major stations (M)</span><div class="step"><button onclick="stepM(-1)">−</button><b id="cfgM">${CFG.m}</b><button onclick="stepM(1)">+</button></div></div>
+    <p class="note" id="cfgSum">Loop: ${ST[0]} → … → ${ST[N-1]} → ${ST[0]} · ${N} stations</p>
+    <div class="btns" style="margin-top:8px"><button class="btn pri" onclick="saveCfg()">Apply setup</button></div>
+    <p class="note">Changing this never deletes readings. Stations you remove are hidden and come back if you add them again.</p></div>
   <div class="card"><h2>Font</h2>
     <div class="seg"><button class="${sysFont()?"":"on"}" onclick="setFont(false)">App (Inter)</button><button class="${sysFont()?"on":""}" style="font-family:system-ui,Roboto,sans-serif" onclick="setFont(true)">System</button></div></div>
   <div class="card"><h2>Data safety</h2>
@@ -410,7 +434,7 @@ function updateStation(){
 function stamp(){const d=new Date(),p=n=>String(n).padStart(2,"0");return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`}
 function blobFile(text,name,type){return new File([text],name,{type})}
 function download(f){const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
-function backupFile(){return blobFile(JSON.stringify({app:KEY,saved:new Date().toISOString(),data:D},null,1),`traverse-backup-${stamp()}.json`,"application/json")}
+function backupFile(){return blobFile(JSON.stringify({app:KEY,saved:new Date().toISOString(),config:CFG,data:D},null,1),`traverse-backup-${stamp()}.json`,"application/json")}
 function backup(){download(backupFile())}
 async function shareBackup(){const f=backupFile();
   if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:f.name})}catch(e){}}else{download(f);alert("Sharing not supported here; file saved to Downloads instead.")}}
