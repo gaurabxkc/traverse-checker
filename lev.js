@@ -36,10 +36,14 @@ function lineCalc(L){
   const end=done?rows[rows.length-1].rlF:null,last=L.setups.length?L.setups[L.setups.length-1].fs.p:"";
   let known=null;if(last&&last===L.start)known=rl0;else if(num(L.closeRl)!=null&&last===L.closeP)known=num(L.closeRl);
   const K=dist/1000,perm=LIM_LEV.k*Math.sqrt(K),err=(done&&known!=null&&rl0!=null)?Math.round((end-known)*1000):null;
-  // TBMs on a there-and-back line: template method RL = RL0 + (Δto - Δback)/2
+  // Named points (not TP): adjust by distance, RL_adj = RL - e x (distance to point / total distance).
+  // At the turnaround of a there-and-back line this equals the template's mean of forward and backward.
   const tbm=[];
-  if(done&&last===L.start&&rl0!=null)L.setups.forEach((u,i)=>{const p=u.fs.p;if(i<L.setups.length-1&&p&&!/^TP/i.test(p)&&p!==L.start&&!tbm.some(x=>x.p===p)){
-    const to=rows[i].rlF-rl0,back=end-rows[i].rlF;tbm.push({p,fwd:rows[i].rlF,mean:r3(rl0+(to-back)/2)})}});
+  if(done&&known!=null&&rl0!=null){const eM=end-known;let cum=0;
+    L.setups.forEach((u,i)=>{const r=rows[i];cum+=(r.B?r.B.dist:0)+(r.F?r.F.dist:0);const p=u.fs.p;
+      if(i===L.setups.length-1||!p||/^TP/i.test(p)||p===L.start)return;
+      const adj=r3(r.rlF-eM*cum/dist),x=tbm.find(q=>q.p===p);
+      if(x){x.vals.push(adj);x.adj=r3(x.vals.reduce((a,b)=>a+b,0)/x.vals.length)}else tbm.push({p,raw:r.rlF,vals:[adj],adj})})}
   return{rows,sBS:r3(sBS),sFS:r3(sFS),sR:r3(sR),sF:r3(sF),dist,K,perm,err,end,known,done,rl0,tbm,
     arith:done&&rl0!=null?Math.abs((sBS-sFS)-(sR-sF))<0.0015&&Math.abs((sBS-sFS)-(end-rl0))<0.0015:null};
 }
@@ -158,7 +162,7 @@ function updateLine(){
     <div class="row"><span>Distance K</span><b>${c.dist.toFixed(1)} m = ${c.K.toFixed(4)} km</b></div>
     <div class="row"><span>Permissible ±24√K</span><b>±${c.perm.toFixed(1)} mm</b></div>
     <div class="row"><span>Closing error</span>${closeTxt}</div>
-    ${c.tbm.map(t=>`<div class="row"><span>RL ${esc(t.p)} (mean of there &amp; back)</span><span class="big">${t.mean.toFixed(3)}</span></div>`).join("")}`;
+    ${c.tbm.length?`<div class="row"><span><b>Adjusted RLs</b> (closing error spread by distance)</span><span></span></div>`:""}${c.tbm.map(t=>`<div class="row"><span>${esc(t.p)}${t.vals.length>1?" · visited "+t.vals.length+"×, averaged":""}</span><span class="big">${t.adj.toFixed(3)}</span></div>`).join("")}`;
   document.getElementById("lbanner").innerHTML=is.length?`<div class="alarm"><h4>⚠ ${is.length} warning${is.length>1?"s":""}</h4><ul>${is.map(x=>`<li>${x}</li>`).join("")}</ul></div>`:
     (c.err!=null?`<div class="passbar">✓ Line closed within ±${c.perm.toFixed(1)} mm</div>`:"");
   const st=is.length?"bad":c.err!=null?"ok":"part";
