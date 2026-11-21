@@ -21,7 +21,7 @@ function w3(a){ // [T,M,B] -> mean (template: ROUND(AVERAGE,3)), stadia, checks
   const t=rd(a&&a[0]),m=rd(a&&a[1]),b=rd(a&&a[2]);
   if(t==null||m==null||b==null)return null;
   const mean=r3((t+m+b)/3),s=t-b,chk=(t+b)/2-m;
-  return{t,m,b,mean,s,dist:s*100,chk,order:t>=m&&m>=b,bad:Math.abs(chk)>LIM_LEV.wire+1e-9||!(t>=m&&m>=b)}}
+  return{t,m,b,mean,s,dist:s*100,chk,rng:(m<0.6||m>3.0)?"bad":m>2.0?"warn":"ok",order:t>=m&&m>=b,bad:Math.abs(chk)>LIM_LEV.wire+1e-9||!(t>=m&&m>=b)}}
 function lineCalc(L){
   const rl0=num(L.rl);let rl=rl0,sBS=0,sFS=0,sR=0,sF=0,dist=0;const rows=[];
   L.setups.forEach((u,i)=>{
@@ -47,6 +47,8 @@ function levIssues(L){const c=lineCalc(L),o=[];
   c.rows.forEach((r,i)=>{const n=i+1;
     if(r.B&&r.B.bad)o.push(`Setup ${n} BS: ${!r.B.order?"T ≥ M ≥ B not satisfied":"(T+B)/2 − M = "+(r.B.chk*1000).toFixed(1)+" mm"}`);
     if(r.F&&r.F.bad)o.push(`Setup ${n} FS: ${!r.F.order?"T ≥ M ≥ B not satisfied":"(T+B)/2 − M = "+(r.F.chk*1000).toFixed(1)+" mm"}`);
+    if(r.B&&r.B.rng==="bad")o.push(`Setup ${n} BS: middle reading ${r.B.m.toFixed(3)} m outside 0.6–3.0 m (guideline)`);
+    if(r.F&&r.F.rng==="bad")o.push(`Setup ${n} FS: middle reading ${r.F.m.toFixed(3)} m outside 0.6–3.0 m (guideline)`);
     if(r.balBad)o.push(`Setup ${n}: BS ${r.B.dist.toFixed(1)} m vs FS ${r.F.dist.toFixed(1)} m (balance ±1 m)`)});
   if(c.err!=null&&Math.abs(c.err)>c.perm)o.push(`Closing error ${c.err} mm exceeds ±${c.perm.toFixed(1)} mm`);
   if(c.arith===false)o.push("Arithmetic check fails (ΣBS−ΣFS ≠ ΣRise−ΣFall)");
@@ -83,7 +85,8 @@ function renderLev(h){
     <div class="row"><span>BS / FS sight distance</span><b>within ±1 m</b></div>
     <div class="row"><span>Two peg collimation</span><b>≥ 1 : 10000</b></div>
     <div class="row"><span>3-wire check |(T+B)/2 − M|</span><b>≤ 3 mm</b></div>
-    <p class="note">The first three are from the guidelines. The 3 mm 3-wire limit is this app's default (the guidelines give none).</p></div>
+    <div class="row"><span>Staff reading (middle)</span><b>0.6–3.0 m · prefer ≤ 2 m</b></div>
+    <p class="note">BS/FS balance, 24√K and 1:10000 are from the guidelines. 0.6–3.0 m is the guideline's turning-point rule (road alignment item 14); ≤ 2 m is the classroom habit, shown in yellow only. The 3 mm 3-wire limit is this app's default.</p></div>
   <div class="card"><h2>Data safety</h2><p class="note">Backup, merge and Excel export on the Traverse screen include levelling too.</p>
     <div class="btns" style="margin-top:8px"><button class="btn pri" onclick="backup()">Save backup</button><button class="btn" onclick="exportCSV()">Excel export</button></div>
     <div class="btns" style="margin-top:10px"><button class="btn" onclick="clearLev()">Clear levelling data…</button></div></div>`;
@@ -138,11 +141,12 @@ function closeToStart(){const L=levCur,u=L.setups[L.setups.length-1];u.fs.p=L.st
 function delSetup(){const L=levCur;if(confirm("Delete setup "+L.setups.length+" and its readings?")){L.setups.pop();levSave();renderLine(L)}}
 function delLine(){const L=levCur;if(prompt('Type DELETE to remove "'+L.name+'" and all its readings.')==="DELETE"){LEV.lines=LEV.lines.filter(x=>x!==L);levSave();location.hash="lev"}}
 const fm=x=>x==null?"–":x.toFixed(3);
-function wRow(lbl,w){if(!w)return "";return `<div class="row"><span>${lbl} mean ${fm(w.mean)} · ${w.dist.toFixed(1)} m</span>${w.bad?pill("bad",!w.order?"T≥M≥B?":(w.chk>0?"+":"")+(w.chk*1000).toFixed(1)+" mm"):pill("ok","3-wire ✓")}</div>`}
+function wRow(lbl,w,rng){if(!w)return "";return `<div class="row"><span>${lbl} mean ${fm(w.mean)} · ${w.dist.toFixed(1)} m</span>${w.bad?pill("bad",!w.order?"T≥M≥B?":(w.chk>0?"+":"")+(w.chk*1000).toFixed(1)+" mm"):pill("ok","3-wire ✓")}</div>`+
+  (rng&&w.rng!=="ok"?`<div class="row"><span>${lbl} middle ${w.m.toFixed(3)} m</span>${w.rng==="bad"?pill("bad","outside 0.6–3.0 m"):pill("warn","prefer 0.6–2 m")}</div>`:"")}
 function updateLine(){
   const L=levCur,c=lineCalc(L),is=levIssues(L);
   c.rows.forEach((r,i)=>{const el=document.getElementById("sr"+i);if(!el)return;
-    el.innerHTML=wRow("BS",r.B)+wRow("FS",r.F)+
+    el.innerHTML=wRow("BS",r.B,1)+wRow("FS",r.F,1)+
     (r.bal!=null?`<div class="row"><span>Sight balance (±1 m)</span>${pill(r.balBad?"bad":"ok","Δ "+r.bal.toFixed(1)+" m")}</div>`:"")+
     (r.rise!=null?`<div class="row"><span>${r.rise>=0?"Rise":"Fall"}</span><b>${Math.abs(r.rise).toFixed(3)}</b></div>`:"")+
     `<div class="row"><span>RL of ${esc(L.setups[i].fs.p||"FS")}</span><span class="big">${fm(r.rlF)}</span></div>`});
@@ -239,6 +243,7 @@ function renderLevGuide(){
     <div class="row"><span>Closing error</span><b>±24√K mm</b></div>
     <div class="row"><span>e.g. 1 km there and back</span><b>±24 mm</b></div>
     <div class="row"><span>3-wire |(T+B)/2 − M|</span><b>≤ 3 mm (app)</b></div>
+    <div class="row"><span>Middle reading</span><b>0.6–3.0 m (prefer ≤ 2 m)</b></div>
     <div class="row"><span>Arithmetic check</span><b>ΣBS−ΣFS = ΣR−ΣF = ΔRL</b></div>
     <p class="note">Booking formats: 11 (two peg test), 12 (fly levelling).</p>
   </div>
