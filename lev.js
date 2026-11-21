@@ -6,7 +6,7 @@ let LEV;
 try{LEV=JSON.parse(localStorage.getItem(LEV_KEY))}catch(e){LEV=null}
 if(!LEV||!Array.isArray(LEV.lines))LEV={lines:[],peg:{d:"",mid:{a:[],b:[]},near:{a:[],b:[]}}};
 if(!LEV.peg)LEV.peg={d:"",mid:{a:[],b:[]},near:{a:[],b:[]}};
-function levSave(){try{localStorage.setItem(LEV_KEY,JSON.stringify(LEV));localStorage.setItem(KEY+"-t",new Date().toISOString())}catch(e){alert("Could not save on this phone! Make a backup now.")}}
+function levSave(){try{localStorage.setItem(LEV_KEY,JSON.stringify(LEV));localStorage.setItem(TS_KEY,new Date().toISOString())}catch(e){alert("Could not save on this phone! Make a backup now.")}}
 function setMod(m){try{localStorage.setItem("trav-mod",m)}catch(e){}}
 function lastMod(){try{return localStorage.getItem("trav-mod")||"trav"}catch(e){return "trav"}}
 function modSwitch(m){return `<div class="seg" style="margin-bottom:14px"><button class="${m==="trav"?"on":""}" onclick="setMod('trav');location.hash=''">Traverse</button><button class="${m==="lev"?"on":""}" onclick="setMod('lev');location.hash='lev'">Levelling</button></div>`}
@@ -60,8 +60,9 @@ function pegCalc(){const P=LEV.peg,a1=w3(P.mid.a),b1=w3(P.mid.b),a2=w3(P.near.a)
 let levCur=null,levLast=null;
 const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 function renderLev(h){
-  setMod("lev");guideBtn.classList.add("hidden");
+  setMod("lev");guideBtn.classList.remove("hidden");
   const part=h.split("/")[1];
+  if(part==="guide")return renderLevGuide();
   if(part==="peg")return renderPeg();
   const L=LEV.lines.find(x=>x.id===part);
   if(L)return renderLine(L);
@@ -84,7 +85,8 @@ function renderLev(h){
     <div class="row"><span>3-wire check |(T+B)/2 − M|</span><b>≤ 3 mm</b></div>
     <p class="note">The first three are from the guidelines. The 3 mm 3-wire limit is this app's default (the guidelines give none).</p></div>
   <div class="card"><h2>Data safety</h2><p class="note">Backup, merge and Excel export on the Traverse screen include levelling too.</p>
-    <div class="btns" style="margin-top:8px"><button class="btn pri" onclick="backup()">Save backup</button><button class="btn" onclick="exportCSV()">Excel export</button></div></div>`;
+    <div class="btns" style="margin-top:8px"><button class="btn pri" onclick="backup()">Save backup</button><button class="btn" onclick="exportCSV()">Excel export</button></div>
+    <div class="btns" style="margin-top:10px"><button class="btn" onclick="clearLev()">Clear levelling data…</button></div></div>`;
 }
 function addLine(){const n=LEV.lines.length+1;const L={id:newId(),name:"Line "+n,start:"BM",rl:"",closeP:"",closeRl:"",setups:[]};
   LEV.lines.push(L);levSave();location.hash="lev/"+L.id}
@@ -190,6 +192,80 @@ function updatePeg(){const c=pegCalc();
   const bad=[c.a1,c.b1,c.a2,c.b2].some(w=>w&&w.bad)||c.ok===false;
   document.getElementById("pbanner").innerHTML=c.ok===false?`<div class="alarm"><h4>⚠ Collimation worse than 1:10000</h4><ul><li>Ask for the instrument to be adjusted or changed before fly levelling.</li></ul></div>`:c.ok?`<div class="passbar">✓ Instrument OK for levelling</div>`:"";
   const st=bad?"bad":c.ok?"ok":"part";if(levLast!==null&&st!==levLast){if(st==="bad")toast("⚠ Two peg test failed",true);else if(st==="ok")toast("✓ Two peg test passed")}levLast=st}
+
+function clearLev(){if(prompt("Type DELETE to clear all levelling lines and the two peg test on this phone. A backup file is saved first.")==="DELETE"){backup();LEV={lines:[],peg:{d:"",mid:{a:[],b:[]},near:{a:[],b:[]}}};levSave();route()}}
+function renderLevGuide(){
+  backTo="lev";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Levelling";guideBtn.classList.add("hidden");
+  title.innerHTML="How to level<small>Auto level · fly levelling · 3-wire</small>";
+  const step=(n,h,b)=>`<div class="gstep"><div class="gn">${n}</div><div><b>${h}</b><div>${b}</div></div></div>`;
+  app.innerHTML=`
+  <div class="card"><h2>Today's job (guideline 10)</h2>
+    ${step(1,"Two peg test first","Check the level's collimation before any fly levelling. Must be better than <b>1 : 10000</b>.")}
+    ${step(2,"Fly level","Carry the RL from the given <b>BM</b> to your allocated <b>minor traverse</b>, establishing <b>TBMs</b> where needed.")}
+    ${step(3,"Three-wire readings","Read top, middle and bottom wire at every staff. The mean of the three is the reading (template method).")}
+    ${step(4,"Close the circuit","Come back to the BM (or close on another BM). Closing error within <b>±24√K mm</b>, K = total distance in km.")}
+  </div>
+  <div class="card"><h2>1 · Two peg test</h2>
+    ${step(1,"Pegs","Drive two pegs A and B about <b>40 m</b> apart on fairly level, firm ground. Tape the distance.")}
+    ${step(2,"Midway","Set the level exactly halfway (tape or pace). Read staff on A then B, three wires each. h1 = A − B is the <b>true</b> difference (errors cancel).")}
+    ${step(3,"Near one peg","Move the level close to one peg, a few metres outside the line. Read A and B again. h2 = A − B is the <b>apparent</b> difference.")}
+    ${step(4,"Result","e = |h1 − h2|. Precision = distance ÷ e must be ≥ 10000 (for 40 m: e ≤ 4 mm). If it fails, tell the teacher before levelling.")}
+  </div>
+  <div class="card"><h2>2 · Set up the auto level</h2>
+    ${step(1,"Tripod","Firm ground, legs pressed in, head roughly level. It does <b>not</b> need to be over a point.")}
+    ${step(2,"Level","Centre the circular bubble with the three foot screws.")}
+    ${step(3,"Focus","Point at the sky: turn the eyepiece until the cross-hairs are sharp. Then focus on the staff.")}
+    ${step(4,"Parallax","Move your eye slightly. If the hairs move on the staff, refocus. Parallax gives wrong readings.")}
+  </div>
+  <div class="card"><h2>3 · One setup (app order)</h2>
+    ${step(1,"BS","Sight the staff on the point you came from (BM, TBM or last change point). Read <b>T, M, B</b> aloud; booker repeats.")}
+    ${step(2,"Balance","Pace the same distance forward and plant the FS staff. App shows distances = 100 × (T − B); keep BS and FS within <b>±1 m</b>.")}
+    ${step(3,"FS","Sight the new point, read <b>T, M, B</b>. Check T − M ≈ M − B (app flags > 3 mm).")}
+    ${step(4,"Move","FS staff stays exactly on its point. Level moves ahead; that staff becomes the next BS. Old BS staff walks ahead to the next FS.")}
+  </div>
+  <div class="card"><h2>4 · Change points and TBMs</h2>
+    ${step("•","Change points","Hard, well-defined: rock, peg top, kerb, change plate. Never soft soil or grass.")}
+    ${step("•","TBMs","Permanent and findable: paint mark on rock or concrete, peg near your minor stations. Rename the point in the app (TP3 → TBM1) and describe it in the field book.")}
+    ${step("•","Sight length","Keep sights short (about 30–50 m) and avoid readings very near the ground (heat shimmer).")}
+  </div>
+  <div class="card"><h2>5 · Staff handling</h2>
+    ${step("•","Extend fully","Every section pulled out until it clicks; check the joints. A half-locked joint shifts every reading.")}
+    ${step("•","Plumb","Keep the staff bubble centred. A leaning staff always reads too high.")}
+    ${step("•","Base","Staff base clean, standing on the exact point, not beside it.")}
+  </div>
+  <div class="card"><h2>6 · Limits</h2>
+    <div class="row"><span>Two peg collimation</span><b>≥ 1 : 10000</b></div>
+    <div class="row"><span>BS vs FS distance</span><b>within ±1 m</b></div>
+    <div class="row"><span>Closing error</span><b>±24√K mm</b></div>
+    <div class="row"><span>e.g. 1 km there and back</span><b>±24 mm</b></div>
+    <div class="row"><span>3-wire |(T+B)/2 − M|</span><b>≤ 3 mm (app)</b></div>
+    <div class="row"><span>Arithmetic check</span><b>ΣBS−ΣFS = ΣR−ΣF = ΔRL</b></div>
+    <p class="note">Booking formats: 11 (two peg test), 12 (fly levelling).</p>
+  </div>
+  <div class="card"><h2>7 · Closing the line</h2>
+    ${step("✓","Back to BM","On the last setup tap <b>Last FS = BM</b> (or set the other BM and its RL). The app shows the closing error at once.")}
+    ${step("✗","Too big?","Look for a red 3-wire or balance warning, or a wrong point name. Re-level the doubtful section before leaving the field.")}
+    ${step("⇩","Backup","Save backup after closing each line.")}
+  </div>
+  <div class="card"><h2>Team roles</h2>
+    <div class="row"><span>Level</span><b>reads T, M, B aloud</b></div>
+    <div class="row"><span>Booker</span><b>field book, ball pen, reads back</b></div>
+    <div class="row"><span>App</span><b>types, calls warnings</b></div>
+    <div class="row"><span>2 × staff</span><b>BS and FS, bubble centred</b></div>
+  </div>
+  <div class="card"><h2>Common mistakes</h2>
+    <ul class="glist">
+      <li>Reading a stadia hair as the middle hair.</li>
+      <li>Parallax not removed: readings change as you move your eye.</li>
+      <li>Moving the change-point staff before the next BS is read.</li>
+      <li>Touching the tripod between BS and FS.</li>
+      <li>Staff sections not locked, staff leaning.</li>
+      <li>Very unequal BS and FS distances.</li>
+      <li>Forgetting to name and describe TBMs.</li>
+    </ul>
+  </div>
+  <div class="nav"><button class="btn pri" onclick="location.hash='lev'">Levelling lines</button></div>`;
+}
 
 /* --- backup / merge / export helpers used by the main script --- */
 function levMerge(src){let n=0;if(!src||!Array.isArray(src.lines))return 0;
