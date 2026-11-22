@@ -120,6 +120,12 @@ body.sysfont{font-family:system-ui,Roboto,"Segoe UI",sans-serif}
 <header><h1 id="title">Major Traverse</h1><button id="guideBtn">Guide</button><button id="homeBtn" class="hidden">◀ All</button></header>
 <main id="app"></main>
 <input type="file" id="fileIn" accept=".json,application/json" class="hidden">
+<script>
+// If anything fails to start, show it instead of a black screen, with a repair button (readings are kept).
+window.addEventListener("error",function(ev){try{var a=document.getElementById("app");if(!a||a.childElementCount)return;
+ a.innerHTML='<div style="padding:16px;margin:16px;border:2px solid #dc2626;border-radius:16px;background:#fee2e2;color:#7f1d1d;font:16px system-ui"><b>The app failed to start.</b><br><small>'+String(ev.message).replace(/</g,"&lt;")+'</small><br><br>Your readings are safe. Tap Repair to reload a fresh copy of the app.<br><br><button id="rep" style="padding:12px 18px;border-radius:10px;border:0;background:#0f766e;color:#fff;font-weight:800;font-size:16px">Repair app</button></div>';
+ document.getElementById("rep").onclick=async function(){try{if(navigator.serviceWorker){var r=await navigator.serviceWorker.getRegistrations();for(var x of r)await x.unregister()}if(window.caches){var k=await caches.keys();for(var c of k)await caches.delete(c)}}catch(e){}location.reload()}}catch(e){}});
+</script>
 <script src="lev.js"></script>
 <script>
 "use strict";

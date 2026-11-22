@@ -1,6 +1,7 @@
-const C="trav-v17",F=["./","index.html","manifest.json","icon.svg","inter.woff2","lev.js"];
-self.addEventListener("install",e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(F)));self.skipWaiting()});
+const C="trav-v18",F=["./","index.html","manifest.json","icon.svg","inter.woff2","lev.js"];
+self.addEventListener("install",e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(F.map(u=>new Request(u,{cache:"reload"})))));self.skipWaiting()});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))));self.clients.claim()});
-// cache first (works offline), refresh cache in background when online
-self.addEventListener("fetch",e=>{e.respondWith(caches.open(C).then(c=>c.match(e.request,{ignoreSearch:true}).then(r=>{
-  const net=fetch(e.request).then(n=>{if(n.ok&&e.request.method==="GET")c.put(e.request,n.clone());return n}).catch(()=>r);return r||net})))});
+// network first (always a matching set of files when online), cache when offline
+self.addEventListener("fetch",e=>{if(e.request.method!=="GET")return;
+  e.respondWith(fetch(e.request,{cache:"no-cache"}).then(n=>{if(n.ok){const cp=n.clone();caches.open(C).then(c=>c.put(e.request,cp))}return n})
+    .catch(()=>caches.open(C).then(c=>c.match(e.request,{ignoreSearch:true}))))});
