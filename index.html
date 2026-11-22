@@ -218,7 +218,7 @@ let cur=null,lastStatus=null;
 let backTo="",guideTo="guide";homeBtn.onclick=()=>{location.hash=backTo};guideBtn.onclick=()=>{location.hash=guideTo};
 window.addEventListener("hashchange",route);
 function route(){const h=decodeURIComponent(location.hash.slice(1));lastStatus=null;backTo="";homeBtn.textContent="◀ All";guideBtn.classList.remove("hidden");
-  if(h==="lev"||h.startsWith("lev/")){guideTo="lev/guide";renderLev(h);window.scrollTo(0,0);return}
+  for(const lk of["lev","fly"])if(h===lk||h.startsWith(lk+"/")){useLev(lk);guideTo=lk+"/guide";renderLev(h);window.scrollTo(0,0);return}
   if(h===""){renderHub();window.scrollTo(0,0);return}
   let k="major",rest=h;if(h==="minor"||h.startsWith("minor/")){k="minor";rest=h==="minor"?"":h.slice(6)}else if(h==="trav")rest="";
   useTrav(k);cur=ST.includes(rest)?rest:null;guideTo=PROF.pre+"guide";
@@ -367,14 +367,16 @@ function renderHub(){
   const grp=loadCfg("major").cfg.group;
   title.innerHTML=`Survey Camp<small>${grp?"Group "+esc(grp)+" · ":""}field checker</small>`;
   const prev=PK,MA=travStats("major"),MI=travStats("minor");useTrav(prev||"major",true);
-  const pc=pegCalc(),lw=LEV.lines.reduce((n,L)=>n+levIssues(L).length,0),lc=LEV.lines.filter(L=>lineCalc(L).err!=null).length;
+  const LS=allLev(()=>({pc:pegCalc(),lw:LEV.lines.reduce((n,L)=>n+levIssues(L).length,0),lc:LEV.lines.filter(L=>lineCalc(L).err!=null).length,n:LEV.lines.length}));
+  const lsub=X=>`${X.n} line${X.n===1?"":"s"}${X.lc?" · "+X.lc+" closed":""} · two peg ${X.pc.ok==null?"not done":X.pc.ok?"✓":"✗"}${X.lw?" · "+X.lw+" warning"+(X.lw>1?"s":""):""}`;
   const work=(href,icon,name,sub,state,prog)=>`<button class="wcard ${state}" ${href?`onclick="location.hash='${href}'"`:"disabled"}>
     <div class="wic">${icon}</div><div class="wtx"><b>${name}</b><small>${sub}</small>${prog!=null?`<div class="bar"><i style="width:${prog}%"></i></div>`:""}</div><span class="wgo">${href?"›":""}</span></button>`;
   const tsub=X=>`${X.S.done.length} / ${X.N} stations${X.tb?" · "+X.tb+" warning"+(X.tb>1?"s":""):X.S.err!=null?" · closed "+X.S.err+"″":""}`;
   app.innerHTML=`
   <div class="hubhead"><h3>Today's work</h3><p>Tap a job. Every reading saves on this phone as you type.</p></div>
   ${work("trav","⌖","Major Traverse",tsub(MA),MA.tb?"bad":MA.S.done.length===MA.N?"ok":"",Math.round(100*MA.S.done.length/MA.N))}
-  ${work("lev","≋","Fly Levelling",`${LEV.lines.length} line${LEV.lines.length===1?"":"s"}${lc?" · "+lc+" closed":""} · two peg ${pc.ok==null?"not done":pc.ok?"✓":"✗"}${lw?" · "+lw+" warning"+(lw>1?"s":""):""}`,lw||pc.ok===false?"bad":"",null)}
+  ${work("fly","〰","Unlinked Fly Levelling",lsub(LS.fly),LS.fly.lw||LS.fly.pc.ok===false?"bad":"",null)}
+  ${work("lev","≋","Fly Levelling (traverse)",lsub(LS.lev),LS.lev.lw||LS.lev.pc.ok===false?"bad":"",null)}
   ${work("minor","◇","Minor Traverse",MI.ok?tsub(MI):"Set up first · one set · 1:3000 · ±1′√n",MI.tb?"bad":MI.ok&&MI.S.done.length===MI.N?"ok":"",MI.ok?Math.round(100*MI.S.done.length/MI.N):null)}
   <p class="note" style="margin:14px 4px 8px">Coming next (per camp schedule)</p>
   ${work("","▦","Detailing","Total station / tacheometry · Day 4–5","soon",null)}
@@ -534,7 +536,7 @@ function blobFile(text,name,type){return new File([text],name,{type})}
 function download(f){const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
 function allTrav(fn){const prev=PK||"major",out={};for(const k of["major","minor"]){useTrav(k,true);out[k]=fn(k)}useTrav(prev,true);return out}
 function backupFile(){const t=allTrav(k=>({config:loadCfg(k).configured?loadCfg(k).cfg:null,data:D}));
-  return blobFile(JSON.stringify({app:"trav-major-v1",saved:new Date().toISOString(),config:t.major.config,data:t.major.data,minor:t.minor,lev:LEV},null,1),`survey-camp-backup-${stamp()}.json`,"application/json")}
+  return blobFile(JSON.stringify({app:"trav-major-v1",saved:new Date().toISOString(),config:t.major.config,data:t.major.data,minor:t.minor,lev:allLev(()=>LEV).lev,fly:allLev(()=>LEV).fly},null,1),`survey-camp-backup-${stamp()}.json`,"application/json")}
 function backup(){download(backupFile())}
 async function shareBackup(){const f=backupFile();
   if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:f.name})}catch(e){}}else{download(f);alert("Sharing not supported here; file saved to Downloads instead.")}}
@@ -551,12 +553,12 @@ document.getElementById("fileIn").addEventListener("change",async e=>{
     useTrav("major",true);let r=mergeTrav(j.data||j,"");n+=r[0];clash=clash.concat(r[1]);
     if(j.minor){if(j.minor.config&&!loadCfg("minor").configured)localStorage.setItem(PROFILES.minor.cfgKey,JSON.stringify(j.minor.config));
       useTrav("minor",true);r=mergeTrav(j.minor.data,"minor ");n+=r[0];clash=clash.concat(r[1])}
-    useTrav(prev,true);n+=levMerge(j.lev);route();
+    useTrav(prev,true);{const r=allLev(k=>levMerge(k==="lev"?j.lev:j.fly));n+=r.lev+r.fly}route();
     alert(`Merged ${n} values.`+(clash.length?`\nDifferent from this phone (kept this phone's): ${clash.join(", ")}`:""));
   }catch(err){alert("Not a valid backup file.")}
 });
 function clearTrav(){if(prompt(`Type DELETE to clear all ${PROF.name.toLowerCase()} readings on this phone. A backup file is saved first.`)==="DELETE"){backup();D=blank();save();route()}}
-function wipe(){if(prompt('Type DELETE to clear ALL jobs on this phone (traverses and levelling). A backup file is saved first.')==="DELETE"){backup();allTrav(()=>{D=blank();save()});LEV={lines:[],peg:{d:"",mid:{a:[],b:[]},near:{a:[],b:[]}}};levSave();route()}}
+function wipe(){if(prompt('Type DELETE to clear ALL jobs on this phone (traverses and levelling). A backup file is saved first.')==="DELETE"){backup();allTrav(()=>{D=blank();save()});allLev(()=>{LEV={lines:[],peg:{d:"",mid:{a:[],b:[]},near:{a:[],b:[]}}};levSave()});route()}}
 function travCSV(csv){
   const two=SETS===2,h=[["Inst St","Sighted To","Face","SetI D","SetI M","SetI S"].concat(two?["SetII D","SetII M","SetII S"]:[])];
   ST.forEach((s,i)=>{const st=D[s];OBS.forEach(([k,face,t],j)=>{const a=st.sets[0][k]||["","",""],b=st.sets[1][k]||["","",""];
@@ -568,7 +570,7 @@ function travCSV(csv){
 function exportCSV(){
   const csv=r=>r.map(v=>v==null?"":/[",\n]/.test(v)?`"${String(v).replace(/"/g,'""')}"`:v).join(",");
   const t=allTrav(k=>PROF.configured&&PROF.ready?travCSV(csv):"");
-  download(blobFile(t.major+(t.minor?"\n\n"+t.minor:"")+levCSV(csv),`survey-camp-excel-${stamp()}.csv`,"text/csv"));
+  download(blobFile(t.major+(t.minor?"\n\n"+t.minor:"")+allLev(k=>levCSV(csv)?"\n\n"+LP.name.toUpperCase()+levCSV(csv):"").fly+allLev(k=>levCSV(csv)?"\n\n"+LP.name.toUpperCase()+levCSV(csv):"").lev,`survey-camp-excel-${stamp()}.csv`,"text/csv"));
 }
 if("serviceWorker"in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js");
 applyFont();route();

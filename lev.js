@@ -1,12 +1,16 @@
 "use strict";
 /* ===== Levelling module: fly levelling (3-wire) + two peg test. Same maths as the template sheets. ===== */
-const LEV_KEY="lev-v1";
-const LIM_LEV={wire:0.003,balance:1,k:24,peg:10000}; // 3-wire |(T+B)/2-M| (app default), BS/FS sight balance ±1 m, 24√K mm, two peg 1:10000
-let LEV;
-try{LEV=JSON.parse(localStorage.getItem(LEV_KEY))}catch(e){LEV=null}
-if(!LEV||!Array.isArray(LEV.lines))LEV={lines:[],peg:{d:"",mid:{a:[],b:[]},near:{a:[],b:[]}}};
-if(!LEV.peg)LEV.peg={d:"",mid:{a:[],b:[]},near:{a:[],b:[]}};
-function levSave(){try{localStorage.setItem(LEV_KEY,JSON.stringify(LEV));localStorage.setItem(TS_KEY,new Date().toISOString())}catch(e){alert("Could not save on this phone! Make a backup now.")}}
+const LEVP={
+  lev:{key:"lev-v1",home:"lev",name:"Fly Levelling",lim:{wire:0.003,chk:"tb",lo:0.6,hi:3.0,warn:2.0,balance:1,k:24,peg:10000}},   // linked to the traverse
+  fly:{key:"fly-v1",home:"fly",name:"Unlinked Fly Levelling",lim:{wire:0.003,chk:"mean",lo:0.6,hi:2.0,warn:null,balance:1,k:24,peg:10000}}}; // camp norms: 0.6-2 m, |mean-mid| <= 3 mm
+let LK="lev",LP=LEVP.lev,LIM_LEV=LP.lim,LEV;
+function useLev(k){LK=k;LP=LEVP[k];LIM_LEV=LP.lim;try{LEV=JSON.parse(localStorage.getItem(LP.key))}catch(e){LEV=null}
+  if(!LEV||!Array.isArray(LEV.lines))LEV={lines:[],peg:{d:"",mid:{a:[],b:[]},near:{a:[],b:[]}}};if(!LEV.peg)LEV.peg={d:"",mid:{a:[],b:[]},near:{a:[],b:[]}}}
+function allLev(fn){const prev=LK,out={};for(const k of["lev","fly"]){useLev(k);out[k]=fn(k)}useLev(prev);return out}
+const chkLbl=()=>LIM_LEV.chk==="mean"?"Mean − Mid":"(T+B)/2 − M",rngTxt=()=>LIM_LEV.lo+"–"+LIM_LEV.hi.toFixed(1)+" m";
+function rngOf(m){return(m<LIM_LEV.lo||m>LIM_LEV.hi)?"bad":(LIM_LEV.warn&&m>LIM_LEV.warn)?"warn":"ok"}
+useLev("lev");
+function levSave(){try{localStorage.setItem(LP.key,JSON.stringify(LEV));localStorage.setItem(TS_KEY,new Date().toISOString())}catch(e){alert("Could not save on this phone! Make a backup now.")}}
 function setMod(m){try{localStorage.setItem("trav-mod",m)}catch(e){}}
 function lastMod(){try{return localStorage.getItem("trav-mod")||"trav"}catch(e){return "trav"}}
 function modSwitch(m){return `<div class="seg" style="margin-bottom:14px"><button class="${m==="trav"?"on":""}" onclick="setMod('trav');location.hash=''">Traverse</button><button class="${m==="lev"?"on":""}" onclick="setMod('lev');location.hash='lev'">Levelling</button></div>`}
@@ -18,11 +22,11 @@ function rd(v){ // staff reading: "1.951" metres, or "1951" millimetres
   if(/^\d*\.?\d+$/.test(v)||/^\d+\.$/.test(v))return +v;return null}
 const r3=x=>Math.round(x*1000)/1000;
 function w3(a,mid){ // [T,M,B] -> mean (template: ROUND(AVERAGE,3)), stadia, checks; mid = middle hair only (template loop levelling)
-  if(mid){const m=rd(a&&a[1]);if(m==null)return null;return{t:null,m,b:null,mean:m,s:0,dist:0,chk:0,rng:(m<0.6||m>3.0)?"bad":m>2.0?"warn":"ok",order:true,bad:false,mid:true}}
+  if(mid){const m=rd(a&&a[1]);if(m==null)return null;return{t:null,m,b:null,mean:m,s:0,dist:0,chk:0,rng:rngOf(m),order:true,bad:false,mid:true}}
   const t=rd(a&&a[0]),m=rd(a&&a[1]),b=rd(a&&a[2]);
   if(t==null||m==null||b==null)return null;
-  const mean=r3((t+m+b)/3),s=t-b,chk=(t+b)/2-m;
-  return{t,m,b,mean,s,dist:s*100,chk,rng:(m<0.6||m>3.0)?"bad":m>2.0?"warn":"ok",order:t>=m&&m>=b,bad:Math.abs(chk)>LIM_LEV.wire+1e-9||!(t>=m&&m>=b)}}
+  const mean=r3((t+m+b)/3),s=t-b,chk=LIM_LEV.chk==="mean"?(t+m+b)/3-m:(t+b)/2-m;
+  return{t,m,b,mean,s,dist:s*100,chk,rng:rngOf(m),order:t>=m&&m>=b,bad:Math.abs(chk)>LIM_LEV.wire+1e-9||!(t>=m&&m>=b)}}
 function lineCalc(L){
   const mid=L.mode==="mid",rl0=num(L.rl);let rl=rl0,sBS=0,sFS=0,sR=0,sF=0,dist=0;const rows=[];
   L.setups.forEach((u,i)=>{
@@ -50,10 +54,10 @@ function lineCalc(L){
 }
 function levIssues(L){const c=lineCalc(L),o=[];
   c.rows.forEach((r,i)=>{const n=i+1;
-    if(r.B&&r.B.bad)o.push(`Setup ${n} BS: ${!r.B.order?"T ≥ M ≥ B not satisfied":"(T+B)/2 − M = "+(r.B.chk*1000).toFixed(1)+" mm"}`);
-    if(r.F&&r.F.bad)o.push(`Setup ${n} FS: ${!r.F.order?"T ≥ M ≥ B not satisfied":"(T+B)/2 − M = "+(r.F.chk*1000).toFixed(1)+" mm"}`);
-    if(r.B&&r.B.rng==="bad")o.push(`Setup ${n} BS: middle reading ${r.B.m.toFixed(3)} m outside 0.6–3.0 m (guideline)`);
-    if(r.F&&r.F.rng==="bad")o.push(`Setup ${n} FS: middle reading ${r.F.m.toFixed(3)} m outside 0.6–3.0 m (guideline)`);
+    if(r.B&&r.B.bad)o.push(`Setup ${n} BS: ${!r.B.order?"T ≥ M ≥ B not satisfied":chkLbl()+" = "+(r.B.chk*1000).toFixed(1)+" mm"}`);
+    if(r.F&&r.F.bad)o.push(`Setup ${n} FS: ${!r.F.order?"T ≥ M ≥ B not satisfied":chkLbl()+" = "+(r.F.chk*1000).toFixed(1)+" mm"}`);
+    if(r.B&&r.B.rng==="bad")o.push(`Setup ${n} BS: middle reading ${r.B.m.toFixed(3)} m outside ${rngTxt()}`);
+    if(r.F&&r.F.rng==="bad")o.push(`Setup ${n} FS: middle reading ${r.F.m.toFixed(3)} m outside ${rngTxt()}`);
     if(r.balBad)o.push(`Setup ${n}: BS ${r.B.dist.toFixed(1)} m vs FS ${r.F.dist.toFixed(1)} m (balance ±1 m)`)});
   if(c.err!=null&&c.perm!=null&&Math.abs(c.err)>c.perm)o.push(`Closing error ${c.err} mm exceeds ±${c.perm.toFixed(1)} mm`);
   if(c.arith===false)o.push("Arithmetic check fails (ΣBS−ΣFS ≠ ΣRise−ΣFall)");
@@ -74,24 +78,24 @@ function renderLev(h){
   const L=LEV.lines.find(x=>x.id===part);
   if(L)return renderLine(L);
   levCur=null;backTo="";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Home";
-  title.innerHTML="Levelling<small>Fly levelling · two peg test</small>";
+  title.innerHTML=`${LP.name}<small>${LK==="fly"?"0.6–2.0 m · |mean − mid| ≤ 3 mm":"Fly levelling · two peg test"}</small>`;
   const pc=pegCalc();
   const cards=LEV.lines.map(L=>{const c=lineCalc(L),is=levIssues(L);
     const st=is.length?pill("bad",is.length+" warning"+(is.length>1?"s":"")):c.err!=null?pill("ok","closed "+(c.err>0?"+":"")+c.err+" mm"):pill("wait",L.setups.length+" setups");
-    return `<button class="lcard${is.length?" bad":""}" onclick="location.hash='lev/${L.id}'"><div><b>${esc(L.name||"Line")}</b><small>${esc(L.start||"?")} → ${esc(L.setups.length?L.setups[L.setups.length-1].fs.p:"…")} · ${c.dist?c.dist.toFixed(0)+" m":"no readings"}</small></div>${st}</button>`}).join("");
+    return `<button class="lcard${is.length?" bad":""}" onclick="location.hash='${LP.home}/${L.id}'"><div><b>${esc(L.name||"Line")}</b><small>${esc(L.start||"?")} → ${esc(L.setups.length?L.setups[L.setups.length-1].fs.p:"…")} · ${c.dist?c.dist.toFixed(0)+" m":"no readings"}</small></div>${st}</button>`}).join("");
   app.innerHTML=`
   <div class="card"><h2>Two peg test (before levelling)</h2>
     <div class="row"><span>Collimation precision (≥ 1:10000)</span>${pc.prec==null?pill("wait","not done"):pill(pc.ok?"ok":"bad",pc.prec===Infinity?"1/∞":"1/"+Math.round(pc.prec))}</div>
-    <div class="btns" style="margin-top:8px"><button class="btn" onclick="location.hash='lev/peg'">Open two peg test</button></div></div>
+    <div class="btns" style="margin-top:8px"><button class="btn" onclick="location.hash='${LP.home}/peg'">Open two peg test</button></div></div>
   <div class="card"><h2>Levelling lines</h2>${cards||'<p class="note">No lines yet. A line starts on a BM of known RL; go to your TBMs and come back (or close on another BM).</p>'}
     <div class="btns" style="margin-top:10px"><button class="btn pri" onclick="addLine()">+ New line</button></div></div>
   <div class="card"><h2>Limits</h2>
     <div class="row"><span>Closing error</span><b>±24√K mm</b></div>
     <div class="row"><span>BS / FS sight distance</span><b>within ±1 m</b></div>
     <div class="row"><span>Two peg collimation</span><b>≥ 1 : 10000</b></div>
-    <div class="row"><span>3-wire check |(T+B)/2 − M|</span><b>≤ 3 mm</b></div>
-    <div class="row"><span>Staff reading (middle)</span><b>0.6–3.0 m · prefer ≤ 2 m</b></div>
-    <p class="note">BS/FS balance, 24√K and 1:10000 are from the guidelines. 0.6–3.0 m is the guideline's turning-point rule (road alignment item 14); ≤ 2 m is the classroom habit, shown in yellow only. The 3 mm 3-wire limit is this app's default.</p></div>
+    <div class="row"><span>3-wire check |${chkLbl()}|</span><b>≤ 3 mm</b></div>
+    <div class="row"><span>Staff reading (middle)</span><b>${rngTxt()}${LIM_LEV.warn?" · prefer ≤ "+LIM_LEV.warn+" m":""}</b></div>
+    <p class="note">${LK==="fly"?"Norms given at camp: readings 0.6–2.0 m, |mean − mid| ≤ 3 mm. BS/FS balance, 24√K and 1:10000 from the guidelines.":"BS/FS balance, 24√K and 1:10000 are from the guidelines. 0.6–3.0 m is the guideline's turning-point rule (road alignment item 14); ≤ 2 m is the classroom habit, shown in yellow only. The 3 mm 3-wire limit is this app's default."}</p></div>
   <div class="card"><h2>Data safety</h2><p class="note">Backup, merge and Excel export on the Traverse screen include levelling too.</p>
     <div class="btns" style="margin-top:8px"><button class="btn pri" onclick="backup()">Save backup</button><button class="btn" onclick="exportCSV()">Excel export</button></div>
     <div class="btns" style="margin-top:10px"><button class="btn" onclick="clearLev()">Clear levelling data…</button></div></div>`;
@@ -100,10 +104,10 @@ function knownRL(p,self){if(!p)return null;for(const L of LEV.lines){if(L===self
 function useKnown(){const k=knownRL(levCur.start,levCur);if(k){levCur.rl=k.rl.toFixed(3);levSave();renderLine(levCur)}}
 function setLevMode(m){if(levCur.setups.length&&!confirm("Switch reading mode for this line? Readings already typed stay saved."))return;levCur.mode=m;levSave();renderLine(levCur)}
 function addLine(){const n=LEV.lines.length+1;const L={id:newId(),name:"Line "+n,start:"BM",rl:"",closeP:"",closeRl:"",setups:[]};
-  LEV.lines.push(L);levSave();location.hash="lev/"+L.id}
+  LEV.lines.push(L);levSave();location.hash=LP.home+"/"+L.id}
 function tmbHTML(path,v,mid){v=v||[];return `<div class="tmb" data-path="${path}">${(mid?[["M",1]]:[["T",0],["M",1],["B",2]]).map(([l,p])=>`<input inputmode="decimal" enterkeyhint="next" placeholder="${l}" data-p="${p}" value="${esc(v[p]??"")}">`).join("")}</div>`}
 function renderLine(L){
-  levCur=L;levLast=null;backTo="lev";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Lines";
+  levCur=L;levLast=null;backTo=LP.home;homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Lines";
   title.innerHTML=`${esc(L.name)}<small>${L.mode==="mid"?"Levelling · middle hair":"Fly levelling · 3-wire"}</small>`;
   const setups=L.setups.map((u,i)=>`<div class="card" id="su${i}"><h2>Setup ${i+1}</h2>
     <div class="obs"><label><b>BS</b> → ${esc(u.bs.p||"?")}</label>${tmbHTML(i+".bs",u.bs.r,L.mode==="mid")}</div>
@@ -153,10 +157,10 @@ function addSetup(){const L=levCur,prev=L.setups[L.setups.length-1];
   const n=L.setups.length-1,el=document.querySelector(`#su${n}`);if(el){el.scrollIntoView({behavior:"smooth",block:"start"});const f=el.querySelector(".tmb input");if(f)setTimeout(()=>f.focus(),300)}}
 function closeToStart(){const L=levCur,u=L.setups[L.setups.length-1];u.fs.p=L.start;levSave();renderLine(L)}
 function delSetup(){const L=levCur;if(confirm("Delete setup "+L.setups.length+" and its readings?")){L.setups.pop();levSave();renderLine(L)}}
-function delLine(){const L=levCur;if(prompt('Type DELETE to remove "'+L.name+'" and all its readings.')==="DELETE"){LEV.lines=LEV.lines.filter(x=>x!==L);levSave();location.hash="lev"}}
+function delLine(){const L=levCur;if(prompt('Type DELETE to remove "'+L.name+'" and all its readings.')==="DELETE"){LEV.lines=LEV.lines.filter(x=>x!==L);levSave();location.hash=LP.home}}
 const fm=x=>x==null?"–":x.toFixed(3);
-function wRow(lbl,w,rng){if(!w)return "";if(w.mid)return `<div class="row"><span>${lbl} middle ${w.m.toFixed(3)} m</span>${w.rng==="bad"?pill("bad","outside 0.6–3.0 m"):w.rng==="warn"?pill("warn","prefer 0.6–2 m"):pill("ok","✓")}</div>`;return `<div class="row"><span>${lbl} mean ${fm(w.mean)} · ${w.dist.toFixed(1)} m</span>${w.bad?pill("bad",!w.order?"T≥M≥B?":(w.chk>0?"+":"")+(w.chk*1000).toFixed(1)+" mm"):pill("ok","3-wire ✓")}</div>`+
-  (rng&&w.rng!=="ok"?`<div class="row"><span>${lbl} middle ${w.m.toFixed(3)} m</span>${w.rng==="bad"?pill("bad","outside 0.6–3.0 m"):pill("warn","prefer 0.6–2 m")}</div>`:"")}
+function wRow(lbl,w,rng){if(!w)return "";if(w.mid)return `<div class="row"><span>${lbl} middle ${w.m.toFixed(3)} m</span>${w.rng==="bad"?pill("bad","outside "+rngTxt()):w.rng==="warn"?pill("warn","prefer 0.6–2 m"):pill("ok","✓")}</div>`;return `<div class="row"><span>${lbl} mean ${fm(w.mean)} · ${w.dist.toFixed(1)} m</span>${w.bad?pill("bad",!w.order?"T≥M≥B?":(w.chk>0?"+":"")+(w.chk*1000).toFixed(1)+" mm"):pill("ok","3-wire ✓")}</div>`+
+  (rng&&w.rng!=="ok"?`<div class="row"><span>${lbl} middle ${w.m.toFixed(3)} m</span>${w.rng==="bad"?pill("bad","outside "+rngTxt()):pill("warn","prefer 0.6–2 m")}</div>`:"")}
 function updateLine(){
   const L=levCur,c=lineCalc(L),is=levIssues(L);
   c.rows.forEach((r,i)=>{const el=document.getElementById("sr"+i);if(!el)return;
@@ -184,7 +188,7 @@ function updateLine(){
   levLast=st;
 }
 function renderPeg(){
-  levCur=null;backTo="lev";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Levelling";
+  levCur=null;backTo=LP.home;homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Levelling";
   title.innerHTML="Two peg test<small>Collimation check · ≥ 1:10000</small>";
   const P=LEV.peg;
   app.innerHTML=`<div id="pbanner"></div>
@@ -217,7 +221,7 @@ function updatePeg(){const c=pegCalc();
 
 function clearLev(){if(prompt("Type DELETE to clear all levelling lines and the two peg test on this phone. A backup file is saved first.")==="DELETE"){backup();LEV={lines:[],peg:{d:"",mid:{a:[],b:[]},near:{a:[],b:[]}}};levSave();route()}}
 function renderLevGuide(){
-  backTo="lev";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Levelling";guideBtn.classList.add("hidden");
+  backTo=LP.home;homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Levelling";guideBtn.classList.add("hidden");
   title.innerHTML="How to level<small>Auto level · fly levelling · 3-wire</small>";
   const step=(n,h,b)=>`<div class="gstep"><div class="gn">${n}</div><div><b>${h}</b><div>${b}</div></div></div>`;
   app.innerHTML=`
@@ -242,7 +246,7 @@ function renderLevGuide(){
   <div class="card"><h2>3 · One setup (app order)</h2>
     ${step(1,"BS","Sight the staff on the point you came from (BM, TBM or last change point). Read <b>T, M, B</b> aloud; booker repeats.")}
     ${step(2,"Balance","Pace the same distance forward and plant the FS staff. App shows distances = 100 × (T − B); keep BS and FS within <b>±1 m</b>.")}
-    ${step(3,"FS","Sight the new point, read <b>T, M, B</b>. Check T − M ≈ M − B (app flags > 3 mm).")}
+    ${step(3,"FS",`Sight the new point, read <b>T, M, B</b>. Check T − M ≈ M − B (app flags |${chkLbl()}| > 3 mm).`)}
     ${step(4,"Move","FS staff stays exactly on its point. Level moves ahead; that staff becomes the next BS. Old BS staff walks ahead to the next FS.")}
   </div>
   <div class="card"><h2>4 · Change points and TBMs</h2>
@@ -260,8 +264,8 @@ function renderLevGuide(){
     <div class="row"><span>BS vs FS distance</span><b>within ±1 m</b></div>
     <div class="row"><span>Closing error</span><b>±24√K mm</b></div>
     <div class="row"><span>e.g. 1 km there and back</span><b>±24 mm</b></div>
-    <div class="row"><span>3-wire |(T+B)/2 − M|</span><b>≤ 3 mm (app)</b></div>
-    <div class="row"><span>Middle reading</span><b>0.6–3.0 m (prefer ≤ 2 m)</b></div>
+    <div class="row"><span>3-wire |${chkLbl()}|</span><b>≤ 3 mm</b></div>
+    <div class="row"><span>Middle reading</span><b>${rngTxt()}${LIM_LEV.warn?" (prefer ≤ "+LIM_LEV.warn+" m)":""}</b></div>
     <div class="row"><span>Arithmetic check</span><b>ΣBS−ΣFS = ΣR−ΣF = ΔRL</b></div>
     <p class="note">Booking formats: 11 (two peg test), 12 (fly levelling).</p>
   </div>
@@ -287,7 +291,7 @@ function renderLevGuide(){
       <li>Forgetting to name and describe TBMs.</li>
     </ul>
   </div>
-  <div class="nav"><button class="btn pri" onclick="location.hash='lev'">Levelling lines</button></div>`;
+  <div class="nav"><button class="btn pri" onclick="location.hash='${LP.home}'">Levelling lines</button></div>`;
 }
 
 
@@ -332,7 +336,7 @@ function bookHTML(L,c){
 }
 
 /* --- backup / merge / export helpers used by the main script --- */
-function levMerge(src){let n=0;if(!src||!Array.isArray(src.lines))return 0;
+function levMerge(src){if(src&&!Array.isArray(src.lines))return 0;let n=0;if(!src||!Array.isArray(src.lines))return 0;
   for(const L of src.lines)if(!LEV.lines.some(x=>x.id===L.id)){LEV.lines.push(L);n++}
   const P=LEV.peg,Q=src.peg;if(Q)for(const g of["mid","near"])for(const s of["a","b"])if(!(P[g][s]||[]).some(v=>v)&&(Q[g]&&Q[g][s]||[]).some(v=>v)){P[g][s]=Q[g][s];n++}
   if(Q&&!P.d&&Q.d)P.d=Q.d;levSave();return n}
