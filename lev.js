@@ -123,6 +123,7 @@ function renderLine(L){
   ${setups}
   <div class="btns" style="margin-bottom:14px"><button class="btn pri" onclick="addSetup()">+ Add setup</button>${L.setups.length?`<button class="btn" onclick="closeToStart()">Last FS = ${esc(L.start)}</button>`:""}</div>
   <div class="card"><h2>Summary</h2><div id="lsum"></div></div>
+  <div class="card"><h2>Field book (copy these values)</h2><div id="lbook"></div></div>
   <div class="btns" style="margin-bottom:14px">${L.setups.length?'<button class="btn" onclick="delSetup()">Delete last setup…</button>':""}<button class="btn" onclick="delLine()">Delete line…</button></div>`;
   wireLine();updateLine();
 }
@@ -163,6 +164,7 @@ function updateLine(){
     (r.rise!=null?`<div class="row"><span>${r.rise>=0?"Rise":"Fall"}</span><b>${Math.abs(r.rise).toFixed(3)}</b></div>`:"")+
     `<div class="row"><span>RL of ${esc(L.setups[i].fs.p||"FS")}</span><span class="big">${fm(r.rlF)}</span></div>`});
   const closeTxt=c.err!=null&&c.perm==null?pill("wait",(c.err>0?"+":"")+c.err+" mm · enter K"):c.err==null?pill("wait",c.done?(c.known==null?"close on a known BM":"enter start RL"):"incomplete"):pill(Math.abs(c.err)<=c.perm?"ok":"bad",(c.err>0?"+":"")+c.err+" mm");
+  document.getElementById("lbook").innerHTML=bookHTML(L,c);
   document.getElementById("lsum").innerHTML=
    `<div class="row"><span>ΣBS / ΣFS</span><b>${fm(c.sBS)} / ${fm(c.sFS)}</b></div>
     <div class="row"><span>ΣRise / ΣFall</span><b>${fm(c.sR)} / ${fm(c.sF)}</b></div>
@@ -282,6 +284,44 @@ function renderLevGuide(){
     </ul>
   </div>
   <div class="nav"><button class="btn pri" onclick="location.hash='lev'">Levelling lines</button></div>`;
+}
+
+
+/* --- Field book view: template "Fly Levelling" layout, forward and backward tables --- */
+function bookHTML(L,c){
+  const n=L.setups.length;if(!n)return '<p class="note">Add a setup to see the book table.</p>';
+  let turn=-1;for(let i=0;i<n-1;i++){const p=L.setups[i].fs.p;if(p&&!/^TP/i.test(p)&&p!==L.start){turn=i;break}}
+  const segs=turn>=0?[[0,turn],[turn+1,n-1]]:[[0,n-1]];
+  const f3=x=>x==null?"":x.toFixed(3),cell=x=>`<td>${x??""}</td>`;
+  const res=segs.map(([a,b],si)=>{
+    const rows=[];let sBS=0,sFS=0,sR=0,sF=0,sD=0;
+    const rl0=a===0?c.rl0:c.rows[a-1].rlF;
+    for(let k=a;k<=b+1;k++){
+      const B=k<=b?c.rows[k].B:null,F=k>a?c.rows[k-1].F:null,stn=k<=b?L.setups[k].bs.p:L.setups[b].fs.p;
+      const br=k<=b?L.setups[k].bs.r||[]:[],fr=k>a?L.setups[k-1].fs.r||[]:[];
+      const rise=k>a?c.rows[k-1].rise:null,rl=k===a?rl0:c.rows[k-1].rlF;
+      const S1=B&&!B.mid?B.s:null,S2=F&&!F.mid?F.s:null,O=(S1||0)+(S2||0),dist=B||F?O*100:null;
+      if(B)sBS+=B.mean;if(F)sFS+=F.mean;if(rise!=null){if(rise>=0)sR+=rise;else sF-=rise}if(dist)sD+=dist;
+      const named=stn&&!/^TP/i.test(stn);
+      rows.push(`<tr class="${named?"named":""}"><td>${esc(stn||"")}</td>${cell(br[0])}${cell(br[1])}${cell(br[2])}${cell(B?f3(B.mean):"")}${cell(S1!=null?f3(S1):"")}${cell(fr[0])}${cell(fr[1])}${cell(fr[2])}${cell(F?f3(F.mean):"")}${cell(S2!=null?f3(S2):"")}${cell(rise!=null&&rise>=0?f3(rise):"")}${cell(rise!=null&&rise<0?f3(-rise):"")}${cell(f3(rl))}${cell(dist!=null?dist.toFixed(1):"")}${cell(named?esc(stn):"")}</tr>`)}
+    const d=Math.abs(sR-sF);
+    return{a,b,html:`<p class="bookh">${segs.length>1?(si===0?"Forward":"Backward")+": ":""}${esc(L.setups[a].bs.p||"")} → ${esc(L.setups[b].fs.p||"")}</p>
+    <div class="bookwrap"><table class="book"><tr><th rowspan="2">Station</th><th colspan="3">BS</th><th rowspan="2">Mean BS</th><th rowspan="2">S1 (T−B)</th><th colspan="3">FS</th><th rowspan="2">Mean FS</th><th rowspan="2">S2 (T−B)</th><th rowspan="2">Rise +</th><th rowspan="2">Fall −</th><th rowspan="2">RL</th><th rowspan="2">Dist S×100</th><th rowspan="2">Remarks</th></tr>
+    <tr><th>Top</th><th>Mid</th><th>Bot</th><th>Top</th><th>Mid</th><th>Bot</th></tr>${rows.join("")}
+    <tr class="sum"><td>Sum</td><td></td><td></td><td></td><td>${f3(sBS)}</td><td></td><td></td><td></td><td></td><td>${f3(sFS)}</td><td></td><td>${f3(sR)}</td><td>${f3(sF)}</td><td></td><td>${sD.toFixed(1)}</td><td></td></tr></table></div>
+    <div class="row"><span>|ΣBS − ΣFS|</span><b>${f3(Math.abs(sBS-sFS))}</b></div>
+    <div class="row"><span>|ΣRise − ΣFall|</span><b>${f3(d)}</b></div>
+    <div class="row"><span>|Last RL − First RL|</span><b>${c.rows[b].rlF!=null&&rl0!=null?f3(Math.abs(c.rows[b].rlF-rl0)):""}</b></div>
+    <div class="row"><span>Distance</span><b>${sD.toFixed(1)} m</b></div>`,d,sD,up:sR>sF}});
+  let tail="";
+  if(res.length===2&&c.rl0!=null&&c.rows[n-1].rlF!=null){const f=res[0],g=res[1],e=Math.round(1000*(f.d-g.d)),k=(f.sD+g.sD)/1000,perm=24*Math.sqrt(k);
+    const name=L.setups[turn].fs.p,rl=f.up?c.rl0+(f.d+g.d)/2:c.rl0-(f.d+g.d)/2;
+    tail=`<p class="bookh">Error computation</p>
+    <div class="row"><span>Error of closure (mm)</span>${pill(Math.abs(e)<=perm?"ok":"bad",(e>0?"+":"")+e+" mm")}</div>
+    <div class="row"><span>Loop distance k (km)</span><b>${k.toFixed(4)}</b></div>
+    <div class="row"><span>Permissible 24√k</span><b>±${perm.toFixed(3)} mm</b></div>
+    <div class="row"><span>RL of ${esc(name)} (mean of fwd and back)</span><span class="big">${rl.toFixed(3)}</span></div>`}
+  return res.map(r=>r.html).join("")+tail;
 }
 
 /* --- backup / merge / export helpers used by the main script --- */
