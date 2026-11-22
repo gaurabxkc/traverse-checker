@@ -171,6 +171,8 @@ function setCalc(set){
   r.FL=(r.bsL!=null&&r.fsL!=null)?mod360(r.fsL-r.bsL):null;
   r.FR=(r.bsR!=null&&r.fsR!=null)?mod360(r.fsR-r.bsR):null;
   r.mean=(r.FL!=null&&r.FR!=null)?(r.FL+r.FR)/2:null;
+  // FL angle vs FR angle (seconds), same ±20" limit
+  r.dA=(r.FL!=null&&r.FR!=null)?(((secs(r.FL)-secs(r.FR))%1296000+1944000)%1296000)-648000:null;
   // guideline check: FR reading - FL reading on same target = 180° ± 20"
   r.cBS=(r.bsL!=null&&r.bsR!=null)?secs(mod360(r.bsR-r.bsL))-648000:null;
   r.cFS=(r.fsL!=null&&r.fsR!=null)?secs(mod360(r.fsR-r.fsL))-648000:null;
@@ -237,7 +239,7 @@ function issues(s){ // every failing check at a station, worded for the field
   const i=ST.indexOf(s),c=stCalc(s),out=[];
   [c.a,c.b].slice(0,SETS).forEach((r,si)=>{const set=SETS===1?"Angle":"Set "+(si?"II":"I");
     if(r.cBS!=null&&Math.abs(r.cBS)>LIM.face)out.push(`${set}: FR−FL on ${bsOf(i)} off by ${Math.abs(r.cBS)}″ (limit 20″)`);
-    if(r.cFS!=null&&Math.abs(r.cFS)>LIM.face)out.push(`${set}: FR−FL on ${fsOf(i)} off by ${Math.abs(r.cFS)}″ (limit 20″)`)});
+    if(r.cFS!=null&&Math.abs(r.cFS)>LIM.face)out.push(`${set}: FR−FL on ${fsOf(i)} off by ${Math.abs(r.cFS)}″ (limit 20″)`);});
   if(c.setBad)out.push(`Set I vs Set II differ by ${c.setDiff}″ (limit 60″)`);
   const L=legs();for(const l of[legBefore(L,i),legAfter(L,i)])if(l&&l.prec!=null&&l.prec<LIM.prec)out.push(`Leg ${l.from}–${l.to} precision ${precTxt(l.prec)} (need 1/${LIM.prec})`);
   const st=D[s];for(const si of(SETS===1?[0]:[0,1]))for(const[k,f,t]of OBS){const v=st.sets[si][k];if(v&&v.some((x,p)=>!cellOK(p,x||"")))out.push(`Set ${si?"II":"I"} ${f}→${t}: value out of range`)}
@@ -289,6 +291,7 @@ function renderGuide(){
   </div>
   <div class="card"><h2>4 · Limits (from the guidelines)</h2>
     <div class="row"><span>FR − FL, same target</span><b>180° ± 20″</b></div>
+    <div class="row"><span>FL angle − FR angle (yellow note only)</span><b>± 20″</b></div>
     ${SETS===2?`<div class="row"><span>Set I mean vs Set II mean</span><b>≤ 1′</b></div>`:""}
     <div class="row"><span>FW vs BW distance (EDM)</span><b>≥ 1 : ${LIM.prec}</b></div>
     ${PK==="minor"?`<div class="row"><span>FW vs BW distance (tape)</span><b>≥ 1 : 1000</b></div>`:""}
@@ -518,6 +521,7 @@ function updateStation(){
   [c.a,c.b].slice(0,SETS).forEach((r,si)=>{document.getElementById("res"+si).innerHTML=
     faceRow("FR−FL on "+bsOf(i),r.cBS)+faceRow("FR−FL on "+fsOf(i),r.cFS)+
     `<div class="row"><span>Face left angle</span><b>${fmt(r.FL)}</b></div><div class="row"><span>Face right angle</span><b>${fmt(r.FR)}</b></div>
+     <div class="row"><span>FL angle − FR angle (±20″)</span>${r.dA==null?pill("wait","—"):pill(Math.abs(r.dA)<=LIM.face?"ok":"warn",(r.dA>0?"+":r.dA<0?"−":"")+Math.abs(r.dA)+'"')}</div>
      <div class="row"><span>${SETS===1?"Mean of faces":"Set mean"}</span><b>${fmt(r.mean)}</b></div>`;
     document.getElementById("o"+si+"bsL").classList.toggle("badobs",r.cBS!=null&&Math.abs(r.cBS)>LIM.face);
     document.getElementById("o"+si+"bsR").classList.toggle("badobs",r.cBS!=null&&Math.abs(r.cBS)>LIM.face);
