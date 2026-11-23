@@ -134,7 +134,7 @@ const PROFILES={
   major:{name:"Major Traverse",home:"trav",pre:"",dataKey:"trav-major-v1",cfgKey:"trav-config-v1",sets:2,
     def:{group:"07",type:"loop",cps:["CP1","CP2"],m:16,px:"M",a:"",b:"",c:"",d:"",brgS:"",brgE:""},lim:{face:20,sets:60,prec:5000,ratio:2,angK:30}},
   minor:{name:"Minor Traverse",home:"minor",pre:"minor/",dataKey:"trav-minor-v1",cfgKey:"trav-minor-config-v1",sets:1,
-    def:{group:"",type:"link",cps:[],m:6,px:"m",a:"",b:"",c:"",d:"",brgS:"",brgE:""},lim:{face:20,sets:60,prec:3000,ratio:3,angK:60}}};
+    def:{group:"",type:"link",cps:[],m:6,px:"m",a:"",b:"",c:"",d:"",brgS:"",brgE:""},lim:{face:20,sets:60,prec:3000,ratio:3,angK:30}}};
 const TS_KEY="trav-major-v1-t";
 const OBS = [["bsL","FL","BS"],["fsL","FL","FS"],["bsR","FR","BS"],["fsR","FR","FS"]]; // template row order
 const OBS_FIELD = [["bsL","FL","BS"],["fsL","FL","FS"],["fsR","FR","FS"],["bsR","FR","BS"]]; // field work order: FL BS→FS, change face, FR FS→BS
@@ -386,7 +386,7 @@ function renderHub(){
   ${work("trav","⌖","Major Traverse",tsub(MA),MA.tb?"bad":MA.S.done.length===MA.N?"ok":"",Math.round(100*MA.S.done.length/MA.N))}
   ${work("fly","〰","Unlinked Fly Levelling",lsub(LS.fly),LS.fly.lw||LS.fly.pc.ok===false?"bad":"",null)}
   ${work("lev","≋","Fly Levelling (traverse)",lsub(LS.lev),LS.lev.lw||LS.lev.pc.ok===false?"bad":"",null)}
-  ${work("minor","◇","Minor Traverse",MI.ok?tsub(MI):"Set up first · one set · 1:3000 · ±1′√n",MI.tb?"bad":MI.ok&&MI.S.done.length===MI.N?"ok":"",MI.ok?Math.round(100*MI.S.done.length/MI.N):null)}
+  ${work("minor","◇","Minor Traverse",MI.ok?tsub(MI):"Set up first · one set · 1:3000 · ±30″√n",MI.tb?"bad":MI.ok&&MI.S.done.length===MI.N?"ok":"",MI.ok?Math.round(100*MI.S.done.length/MI.N):null)}
   <p class="note" style="margin:14px 4px 8px">Coming next (per camp schedule)</p>
   ${work("","▦","Detailing","Total station / tacheometry · Day 4–5","soon",null)}
   ${work("","⌒","Bridge Site Survey","Triangulation · reciprocal levelling · Day 6–7","soon",null)}
