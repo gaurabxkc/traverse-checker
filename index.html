@@ -134,7 +134,7 @@ const PROFILES={
   major:{name:"Major Traverse",home:"trav",pre:"",dataKey:"trav-major-v1",cfgKey:"trav-config-v1",sets:2,
     def:{group:"07",type:"loop",cps:["CP1","CP2"],m:16,px:"M",a:"",b:"",c:"",d:"",brgS:"",brgE:""},lim:{face:20,sets:60,prec:5000,ratio:2,angK:30}},
   minor:{name:"Minor Traverse",home:"minor",pre:"minor/",dataKey:"trav-minor-v1",cfgKey:"trav-minor-config-v1",sets:1,
-    def:{group:"",type:"link",cps:[],m:6,px:"m",a:"",b:"",c:"",d:"",brgS:"",brgE:""},lim:{face:20,sets:60,prec:3000,ratio:3,angK:30}}};
+    def:{group:"",type:"link",cps:[],m:6,px:"m",a:"",b:"",c:"",d:"",brgS:"",brgE:""},lim:{face:20,sets:60,prec:3000,ratio:3,angK:60}}};
 const TS_KEY="trav-major-v1-t";
 const OBS = [["bsL","FL","BS"],["fsL","FL","FS"],["bsR","FR","BS"],["fsR","FR","FS"]]; // template row order
 const OBS_FIELD = [["bsL","FL","BS"],["fsL","FL","FS"],["fsR","FR","FS"],["bsR","FR","BS"]]; // field work order: FL BS→FS, change face, FR FS→BS
@@ -332,7 +332,7 @@ function applyFont(){document.body.classList.toggle("sysfont",sysFont())}
 function setFont(sys){try{localStorage.setItem("trav-font",sys?"system":"app")}catch(e){}applyFont();route()}
 function stepM(d){const el=document.getElementById("cfgM");el.textContent=Math.max(1,Math.min(60,+el.textContent+d))}
 function setType(t){document.getElementById("cfgType").value=t;document.querySelectorAll("[data-type]").forEach(b=>b.classList.toggle("on",b.dataset.type===t));
-  document.getElementById("cfgLink").classList.toggle("hidden",t!=="link");document.getElementById("cfgLoop").classList.toggle("hidden",t!=="loop")}
+  document.getElementById("cfgLink").classList.toggle("hidden",t!=="link");document.getElementById("cfgLinkB").classList.toggle("hidden",t!=="link");document.getElementById("cfgLoop").classList.toggle("hidden",t!=="loop")}
 function saveCfg(){
   const g=id=>{const e=document.getElementById(id);return e?e.value.trim():""},up=x=>x.toUpperCase().replace(/\s+/g,"");
   const type=g("cfgType")||"loop",m=+document.getElementById("cfgM").textContent;
@@ -358,12 +358,15 @@ function setupCard(){
       <div class="row"><span>Start: first station</span><input id="cfgB" class="cfgin" value="${esc(CFG.b)}" placeholder="M15"></div>
       <div class="row"><span>End: last station</span><input id="cfgC" class="cfgin" value="${esc(CFG.c)}" placeholder="M17"></div>
       <div class="row"><span>End: fore sight</span><input id="cfgD" class="cfgin" value="${esc(CFG.d)}" placeholder="M18"></div>
+    </div>
+    <div class="row" style="border-top:1px solid var(--line,rgba(127,127,127,.25));padding-top:10px"><span>${minor?"Minor stations (m)":"Major stations (M)"}</span><div class="step"><button onclick="stepM(-1)">−</button><b id="cfgM">${CFG.m}</b><button onclick="stepM(1)">+</button></div></div>
+    <p class="note">${minor?"Number of new minor stations between the start and end stations (m1, m2, …).":""}</p>
+    <div id="cfgLinkB" class="${t==="link"?"":"hidden"}">
       <div class="row"><span>Bearing start line (optional)</span><input id="cfgBS" class="cfgin" value="${esc(CFG.brgS)}" placeholder="D M S"></div>
       <div class="row"><span>Bearing end line (optional)</span><input id="cfgBE" class="cfgin" value="${esc(CFG.brgE)}" placeholder="D M S"></div>
       <p class="note">Bearings come from the computed major traverse. Without them the app still checks every station and leg; with them it also checks angular closure.</p></div>
     <div id="cfgLoop" class="${t==="loop"?"":"hidden"}">
       <div class="row"><span>Common points</span><input id="cfgCps" class="cfgin" value="${esc(CFG.cps.join(", "))}" placeholder="${minor?"M5":"CP1, CP2"}"></div></div>
-    <div class="row"><span>${minor?"Minor stations (m)":"Major stations (M)"}</span><div class="step"><button onclick="stepM(-1)">−</button><b id="cfgM">${CFG.m}</b><button onclick="stepM(1)">+</button></div></div>
     ${PROF.ready&&PROF.configured?`<p class="note">${routeTxt()} · ${N} stations observed</p>`:""}
     <div class="btns" style="margin-top:8px"><button class="btn pri" onclick="saveCfg()">Apply setup</button></div>
     <p class="note">Changing this never deletes readings. Stations you remove are hidden and come back if you add them again.</p></div>`}
@@ -386,7 +389,7 @@ function renderHub(){
   ${work("trav","⌖","Major Traverse",tsub(MA),MA.tb?"bad":MA.S.done.length===MA.N?"ok":"",Math.round(100*MA.S.done.length/MA.N))}
   ${work("fly","〰","Unlinked Fly Levelling",lsub(LS.fly),LS.fly.lw||LS.fly.pc.ok===false?"bad":"",null)}
   ${work("lev","≋","Fly Levelling (traverse)",lsub(LS.lev),LS.lev.lw||LS.lev.pc.ok===false?"bad":"",null)}
-  ${work("minor","◇","Minor Traverse",MI.ok?tsub(MI):"Set up first · one set · 1:3000 · ±30″√n",MI.tb?"bad":MI.ok&&MI.S.done.length===MI.N?"ok":"",MI.ok?Math.round(100*MI.S.done.length/MI.N):null)}
+  ${work("minor","◇","Minor Traverse",MI.ok?tsub(MI):"Set up first · one set · 1:3000 · ±1′√n",MI.tb?"bad":MI.ok&&MI.S.done.length===MI.N?"ok":"",MI.ok?Math.round(100*MI.S.done.length/MI.N):null)}
   <p class="note" style="margin:14px 4px 8px">Coming next (per camp schedule)</p>
   ${work("","▦","Detailing","Total station / tacheometry · Day 4–5","soon",null)}
   ${work("","⌒","Bridge Site Survey","Triangulation · reciprocal levelling · Day 6–7","soon",null)}
