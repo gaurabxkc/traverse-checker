@@ -1,0 +1,154 @@
+"use strict";
+/* ===== Coordinate transfer: total station setups (station + backsight), backsight check, recorded points (Pt No, N, E, Z) ===== */
+const CT_KEY="ct-v1";
+// Control: CP1/CP2 = DGPS (given). M1-M16 = Major Gales table (2026-11-24). Z only where known.
+const CT_PRESET={"CP1":[3063153.032,626869.647,1335.756],"CP2":[3063058.209,626869.798,1335.131],"M1":[3062987.924,626907.506,null],"M2":[3062871.895,626923.747,null],"M3":[3062883.74,627047.491,null],"M4":[3062854.793,627126.533,null],"M5":[3062890.655,627250.72,null],"M6":[3062998.305,627292.363,null],"M7":[3063034.306,627345.667,null],"M8":[3063162.956,627353.837,null],"M9":[3063208.836,627434.563,null],"M10":[3063302.093,627368.338,null],"M11":[3063325.23,627287.046,null],"M12":[3063252.992,627223.388,null],"M13":[3063307.138,627131.203,null],"M14":[3063285.96,627057.12,null],"M15":[3063168.151,627020.447,null],"M16":[3063192.6,626936.029,null]};
+const CT_TOL=0.010; // backsight / known-point check, metres
+let CT;
+function ctLoad(){try{CT=JSON.parse(localStorage.getItem(CT_KEY))}catch(e){CT=null}if(!CT||!Array.isArray(CT.setups))CT={known:{},setups:[]};if(!CT.known)CT.known={}}
+function ctSave(){try{localStorage.setItem(CT_KEY,JSON.stringify(CT));localStorage.setItem(TS_KEY,new Date().toISOString())}catch(e){alert("Could not save on this phone! Make a backup now.")}}
+ctLoad();
+const ctKnown=()=>Object.assign({},CT_PRESET,CT.known);
+function ctXYZ(p){const k=ctKnown()[p];return k?{N:k[0],E:k[1],Z:k[2]}:null}
+const n3=v=>v==null||v===""||isNaN(+v)?null:+v;
+function azi(a,b){if(!a||!b||a.N==null||b.N==null)return null;const dN=b.N-a.N,dE=b.E-a.E;return{az:(Math.atan2(dE,dN)*180/Math.PI+360)%360,d:Math.hypot(dN,dE)}}
+function ctDms(x){if(x==null)return "–";let t=Math.round(x*3600);const d=Math.floor(t/3600),m=Math.floor(t%3600/60),s=t%60;return `${d}° ${String(m).padStart(2,"0")}′ ${String(s).padStart(2,"0")}″`}
+function ctDelta(meas,known){if(!meas||!known)return null;const N=n3(meas.N),E=n3(meas.E),Z=n3(meas.Z);if(N==null||E==null)return null;
+  const dN=N-known.N,dE=E-known.E,dH=Math.hypot(dN,dE),dZ=Z!=null&&known.Z!=null?Z-known.Z:null;
+  return{dN,dE,dH,dZ,bad:dH>CT_TOL+1e-9||(dZ!=null&&Math.abs(dZ)>CT_TOL+1e-9)}}
+const mm=x=>(x>=0?"+":"")+(x*1000).toFixed(0)+" mm";
+function dPill(d){if(!d)return pill("wait","—");return pill(d.bad?"bad":"ok",`Δ ${(d.dH*1000).toFixed(0)} mm${d.dZ!=null?" · Z "+mm(d.dZ):""}`)}
+function ctIssues(S){const o=[];const st=ctXYZ(S.stn),bs=ctXYZ(S.bs);
+  if(S.stn&&!st)o.push(`Station ${S.stn} has no coordinates`);if(S.bs&&!bs)o.push(`Backsight ${S.bs} has no coordinates`);
+  const d=ctDelta(S.bsM,bs);if(d&&d.bad)o.push(`Backsight check ${S.bs}: off by ${(d.dH*1000).toFixed(0)} mm${d.dZ!=null?", Z "+mm(d.dZ):""} (limit ${CT_TOL*1000} mm)`);
+  S.pts.forEach(p=>{const k=ctXYZ(p.p);if(k&&p.p!==S.stn){const x=ctDelta(p,k);if(x&&x.bad)o.push(`Point ${p.p}: differs from known by ${(x.dH*1000).toFixed(0)} mm${x.dZ!=null?", Z "+mm(x.dZ):""}`)}});
+  return o}
+function nextName(p){const m=/^(.*?)(\d+)$/.exec(p||"");return m?m[1]+(+m[2]+1):""}
+
+/* --- UI --- */
+let ctCur=null,ctLast=null;
+function renderCT(h){
+  setMod("trav");guideBtn.classList.remove("hidden");guideTo="ct/guide";
+  const part=h.split("/")[1];
+  if(part==="guide")return renderCTGuide();
+  if(part==="known")return renderCTKnown();
+  const S=CT.setups.find(x=>x.id===part);if(S)return renderCTSetup(S);
+  ctCur=null;backTo="";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Home";
+  title.innerHTML="Coordinate Transfer<small>Total station · station + backsight · N E Z</small>";
+  const cards=CT.setups.map(S=>{const is=ctIssues(S),d=ctDelta(S.bsM,ctXYZ(S.bs));
+    const st=is.length?pill("bad",is.length+" warning"+(is.length>1?"s":"")):d?pill("ok","BS ✓"):pill("wait","BS not checked");
+    return `<button class="lcard${is.length?" bad":""}" onclick="location.hash='ct/${S.id}'"><div><b>At ${esc(S.stn||"?")}</b><small>BS ${esc(S.bs||"?")} · ${S.pts.length} point${S.pts.length===1?"":"s"}</small></div>${st}</button>`}).join("");
+  const nk=Object.keys(CT.known).length;
+  app.innerHTML=`
+  <div class="card"><h2>Setups</h2>${cards||'<p class="note">No setups yet. Each setup = one instrument station oriented on a backsight of known coordinates.</p>'}
+    <div class="btns" style="margin-top:10px"><button class="btn pri" onclick="ctAdd()">+ New setup</button></div></div>
+  <div class="card"><h2>Known points</h2>
+    <div class="row"><span>CP1, CP2 (DGPS) + M1–M16 (Gales)</span><b>${Object.keys(CT_PRESET).length}</b></div>
+    <div class="row"><span>Added on this phone</span><b>${nk}</b></div>
+    <div class="btns" style="margin-top:8px"><button class="btn" onclick="location.hash='ct/known'">View / add known points</button></div></div>
+  <div class="card"><h2>Limits</h2>
+    <div class="row"><span>Backsight check (measured vs known)</span><b>≤ ${CT_TOL*1000} mm</b></div>
+    <div class="row"><span>Re-shot known point</span><b>≤ ${CT_TOL*1000} mm</b></div>
+    <p class="note">10 mm is this app's default for a total station over these distances; ask the teacher if they give a different value. Warnings never block typing.</p></div>
+  <div class="card"><h2>Data</h2><p class="note">Backup, merge and Excel export on the home screen include these points.</p>
+    <div class="btns" style="margin-top:8px"><button class="btn pri" onclick="backup()">Save backup</button><button class="btn" onclick="ctExport()">Points CSV</button></div>
+    <div class="btns" style="margin-top:10px"><button class="btn" onclick="ctClear()">Clear coordinate data…</button></div></div>`;
+}
+function ctAdd(prevStn,prevBs){const S={id:newId(),stn:prevStn||"",hi:"",bs:prevBs||"",ht:"",bsM:{N:"",E:"",Z:""},pts:[]};CT.setups.push(S);ctSave();location.hash="ct/"+S.id}
+function ctFwd(i){const S=ctCur,p=S.pts[i];if(!p.p||n3(p.N)==null||n3(p.E)==null){alert("Give the point a name and N, E first.");return}
+  if(!ctXYZ(p.p)||confirm(`${p.p} already has coordinates. Replace them with this point's values?`)){CT.known[p.p]=[n3(p.N),n3(p.E),n3(p.Z)];}
+  ctSave();ctAdd(p.p,S.stn)}
+function knownBox(lbl,name){const k=ctXYZ(name);return k?`<div class="row"><span>${lbl} N / E / Z</span><b>${k.N.toFixed(3)} / ${k.E.toFixed(3)} / ${k.Z==null?"–":k.Z.toFixed(3)}</b></div>`:
+  (name?`<div class="row"><span>${lbl}</span>${pill("bad","not a known point")}</div><p class="note">Add ${esc(name)} under Known points (or record it as a point from an earlier setup and tap “Use as next station”).</p>`:"")}
+function renderCTSetup(S){
+  ctCur=S;ctLast=null;backTo="ct";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Setups";
+  title.innerHTML=`At ${esc(S.stn||"?")}<small>Backsight ${esc(S.bs||"?")} · coordinate transfer</small>`;
+  const opts=Object.keys(ctKnown()).map(k=>`<option value="${esc(k)}">`).join("");
+  const pt=(p,i)=>`<div class="card" id="cp${i}"><div class="row" style="border:0;padding-top:0"><span><b>Point</b> <input class="pt" style="width:110px;text-transform:none" data-pi="${i}" data-k="p" value="${esc(p.p)}" autocapitalize="off" autocorrect="off" spellcheck="false"></span><div id="cpd${i}"></div></div>
+    <div class="nez">${["N","E","Z"].map(k=>`<label>${k}<input inputmode="decimal" data-pi="${i}" data-k="${k}" value="${esc(p[k]??"")}" placeholder="${k==="N"?"3063…":k==="E"?"627…":"13…"}"></label>`).join("")}</div>
+    <div class="row"><span>Target height HT (m)</span><input class="cfgin" inputmode="decimal" data-pi="${i}" data-k="ht" value="${esc(p.ht??"")}" placeholder="${esc(S.ht||"1.500")}"></div>
+    <div class="row"><span>Remark / code</span><input class="cfgin" data-pi="${i}" data-k="rem" value="${esc(p.rem||"")}" placeholder="peg, building…"></div>
+    <div id="cpx${i}"></div>
+    <div class="btns" style="margin-top:8px"><button class="btn" onclick="ctFwd(${i})">Use as next station →</button><button class="btn" onclick="ctDelPt(${i})">Delete</button></div></div>`;
+  app.innerHTML=`<div id="cbanner"></div><datalist id="ctk">${opts}</datalist>
+  <div class="card"><h2>1 · Station setup</h2>
+    <div class="row"><span>Instrument station</span><input class="cfgin" list="ctk" data-f="stn" value="${esc(S.stn)}" placeholder="CP1" autocapitalize="off"></div>
+    <div id="cst">${knownBox("Station",S.stn)}</div>
+    <div class="row"><span>Instrument height HI (m)</span><input class="cfgin" inputmode="decimal" data-f="hi" value="${esc(S.hi)}" placeholder="1.520"></div>
+    <div class="row"><span>Target height HT (m)</span><input class="cfgin" inputmode="decimal" data-f="ht" value="${esc(S.ht)}" placeholder="1.500"></div></div>
+  <div class="card"><h2>2 · Backsight (orientation)</h2>
+    <div class="row"><span>Backsight station</span><input class="cfgin" list="ctk" data-f="bs" value="${esc(S.bs)}" placeholder="CP2" autocapitalize="off"></div>
+    <div id="cbs"></div></div>
+  <div class="card"><h2>3 · Backsight check</h2><p class="note">After orienting, measure the backsight in coordinate mode and type what the instrument shows.</p>
+    <div class="nez">${["N","E","Z"].map(k=>`<label>${k}<input inputmode="decimal" data-b="${k}" value="${esc(S.bsM[k]??"")}"></label>`).join("")}</div>
+    <div id="cbc"></div></div>
+  <p class="bookh" style="margin:4px 4px 8px">4 · Points (${S.pts.length})</p>
+  ${S.pts.map(pt).join("")}
+  <div class="btns" style="margin-bottom:14px"><button class="btn" onclick="ctDelSetup()">Delete setup…</button></div>
+  <div class="lsticky"><span>${S.pts.length} point${S.pts.length===1?"":"s"} at ${esc(S.stn||"?")}</span><button class="btn pri" onclick="ctAddPt()">+ Point</button></div>`;
+  app.querySelectorAll("[data-f]").forEach(el=>{el.addEventListener("input",()=>{S[el.dataset.f]=el.value.trim();ctSave();ctUpd()});
+    el.addEventListener("change",()=>{if(el.dataset.f==="stn"||el.dataset.f==="bs")renderCTSetup(S)})});
+  app.querySelectorAll("[data-b]").forEach(el=>el.addEventListener("input",()=>{el.value=el.value.replace(/[^\d.\-]/g,"");S.bsM[el.dataset.b]=el.value;ctSave();ctUpd()}));
+  app.querySelectorAll("[data-pi]").forEach(el=>el.addEventListener("input",()=>{const p=S.pts[+el.dataset.pi],k=el.dataset.k;
+    if("NEZht".includes(k)&&k!=="p")el.value=el.value.replace(/[^\d.\-]/g,"");p[k]=k==="p"?el.value.trim():el.value;ctSave();ctUpd()}));
+  ctUpd();
+}
+function ctUpd(){const S=ctCur;if(!S)return;const st=ctXYZ(S.stn),bs=ctXYZ(S.bs),a=azi(st,bs);
+  title.innerHTML=`At ${esc(S.stn||"?")}<small>Backsight ${esc(S.bs||"?")} · coordinate transfer</small>`;
+  const cs=document.getElementById("cst");if(cs)cs.innerHTML=knownBox("Station",S.stn);
+  document.getElementById("cbs").innerHTML=knownBox("Backsight",S.bs)+(a?`<div class="row"><span>Backsight azimuth (set this)</span><b style="font-size:18px;white-space:nowrap">${ctDms(a.az)}</b></div><div class="row"><span>Distance to backsight</span><b>${a.d.toFixed(3)} m</b></div>`:"");
+  const d=ctDelta(S.bsM,bs);
+  document.getElementById("cbc").innerHTML=d?`<div class="row"><span>ΔN / ΔE</span><b>${mm(d.dN)} / ${mm(d.dE)}</b></div><div class="row"><span>Horizontal miss${d.dZ!=null?" · ΔZ":""}</span>${dPill(d)}</div>`:'<div class="row"><span>Check</span>'+pill("wait","type N and E")+"</div>";
+  S.pts.forEach((p,i)=>{const r=azi(st,{N:n3(p.N),E:n3(p.E)}),k=ctXYZ(p.p),x=k&&p.p!==S.stn?ctDelta(p,k):null;
+    const dd=document.getElementById("cpd"+i);if(dd)dd.innerHTML=x?dPill(x):k&&p.p!==S.stn?pill("wait","known: check"):r?`<small class="note">${r.d.toFixed(2)} m · ${ctDms(r.az)}</small>`:"";
+    const xx=document.getElementById("cpx"+i);if(xx)xx.innerHTML=x?`<div class="row"><span>vs known ${esc(p.p)}: ΔN / ΔE</span><b>${mm(x.dN)} / ${mm(x.dE)}</b></div>`:""});
+  const is=ctIssues(S);
+  document.getElementById("cbanner").innerHTML=is.length?`<div class="alarm"><h4>⚠ ${is.length} warning${is.length>1?"s":""}</h4><ul>${is.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:(d?`<div class="passbar">✓ Backsight within ${CT_TOL*1000} mm</div>`:"");
+  const s=is.length?"bad":d?"ok":"part";if(ctLast!==null&&s!==ctLast){if(s==="bad")toast("⚠ Check failed",true);else if(s==="ok")toast("✓ Backsight OK")}ctLast=s;
+}
+function ctAddPt(){const S=ctCur,last=S.pts[S.pts.length-1];S.pts.push({p:last?nextName(last.p):"",N:"",E:"",Z:"",ht:"",rem:""});ctSave();renderCTSetup(S);
+  const el=document.getElementById("cp"+(S.pts.length-1));if(el){el.scrollIntoView({behavior:"smooth",block:"start"});const f=el.querySelector(S.pts[S.pts.length-1].p?'[data-k="N"]':'[data-k="p"]');if(f)setTimeout(()=>f.focus(),300)}}
+function ctDelPt(i){if(confirm("Delete point "+(ctCur.pts[i].p||i+1)+"?")){ctCur.pts.splice(i,1);ctSave();renderCTSetup(ctCur)}}
+function ctDelSetup(){const S=ctCur;if(prompt('Type DELETE to remove the setup at '+(S.stn||"?")+' and its points.')==="DELETE"){CT.setups=CT.setups.filter(x=>x!==S);ctSave();location.hash="ct"}}
+function ctClear(){if(prompt("Type DELETE to clear all coordinate transfer setups and added known points on this phone. A backup file is saved first.")==="DELETE"){backup();CT={known:{},setups:[]};ctSave();route()}}
+function renderCTKnown(){
+  ctCur=null;backTo="ct";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Setups";
+  title.innerHTML="Known points<small>Control + transferred stations</small>";
+  const K=ctKnown(),row=(k,v,own)=>`<div class="row"><span><b>${esc(k)}</b>${own?' <small class="note">(added)</small>':""}<br><small class="note">${v[0].toFixed(3)} · ${v[1].toFixed(3)} · ${v[2]==null?"–":(+v[2]).toFixed(3)}</small></span>${own?`<button class="btn" style="flex:none;padding:8px 12px" onclick="ctDelKnown('${esc(k)}')">Remove</button>`:""}</div>`;
+  app.innerHTML=`<div class="card"><h2>Add a known point</h2>
+    <div class="row"><span>Name</span><input class="cfgin" id="kn" autocapitalize="off" placeholder="m1"></div>
+    <div class="nez"><label>N<input inputmode="decimal" id="kN"></label><label>E<input inputmode="decimal" id="kE"></label><label>Z<input inputmode="decimal" id="kZ"></label></div>
+    <div class="btns" style="margin-top:8px"><button class="btn pri" onclick="ctAddKnown()">Save point</button></div>
+    <p class="note">Use this for minor stations from the minor Gales table, or RLs once levelling is done. Adding a name that already exists replaces it on this phone.</p></div>
+  <div class="card"><h2>All known points</h2>${Object.keys(K).map(k=>row(k,K[k],!!CT.known[k])).join("")}</div>`;
+}
+function ctAddKnown(){const g=id=>document.getElementById(id).value.trim(),n=g("kn"),N=n3(g("kN")),E=n3(g("kE")),Z=n3(g("kZ"));
+  if(!n||N==null||E==null){alert("Name, N and E are needed.");return}CT.known[n]=[N,E,Z];ctSave();renderCTKnown()}
+function ctDelKnown(k){if(confirm("Remove "+k+" from the added points?")){delete CT.known[k];ctSave();renderCTKnown()}}
+function ctCSV(csv){if(!CT.setups.length)return "";const r=[["Point","N","E","Z","HT","Remark","From station","Backsight"]];
+  CT.setups.forEach(S=>S.pts.forEach(p=>r.push([p.p,p.N,p.E,p.Z,p.ht||S.ht,p.rem,S.stn,S.bs])));
+  const s=[["Station","HI","HT","Backsight","BS meas N","BS meas E","BS meas Z"]];CT.setups.forEach(S=>s.push([S.stn,S.hi,S.ht,S.bs,S.bsM.N,S.bsM.E,S.bsM.Z]));
+  return "\n\nCOORDINATE TRANSFER: POINTS\n"+r.map(csv).join("\n")+"\n\nCOORDINATE TRANSFER: SETUPS\n"+s.map(csv).join("\n")+"\n"}
+function ctExport(){const csv=r=>r.map(v=>v==null?"":/[",\n]/.test(v)?`"${String(v).replace(/"/g,'""')}"`:v).join(",");download(blobFile(ctCSV(csv).trim()+"\n",`coordinate-transfer-${stamp()}.csv`,"text/csv"))}
+function ctMerge(src){if(!src||!Array.isArray(src.setups))return 0;let n=0;for(const S of src.setups)if(!CT.setups.some(x=>x.id===S.id)){CT.setups.push(S);n++}
+  for(const k in src.known||{})if(!CT.known[k]){CT.known[k]=src.known[k];n++}ctSave();return n}
+function renderCTGuide(){
+  backTo="ct";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Setups";guideBtn.classList.add("hidden");
+  title.innerHTML="How to transfer coordinates<small>Total station · coordinate mode</small>";
+  const step=(n,h,b)=>`<div class="gstep"><div class="gn">${n}</div><div><b>${h}</b><div>${b}</div></div></div>`;
+  app.innerHTML=`<div class="card"><h2>At every setup</h2>
+    ${step(1,"Centre and level","Over the station mark, as for the traverse.")}
+    ${step(2,"Measure HI","Tape from the mark to the instrument's height mark. Enter it in the instrument and here.")}
+    ${step(3,"Station setup","In the instrument: Occupied point = station name with its N, E, Z. Use the values on this page.")}
+    ${step(4,"Backsight","Enter the backsight point's N, E (or the azimuth shown here), sight the prism on it, set.")}
+    ${step(5,"Check the backsight","Measure the backsight in coordinate mode. The app compares it with the known values: must agree within 10 mm. If not, redo steps 3–4 (wrong point, typo, or HT).")}
+    ${step(6,"Shoot points","For each point: point number, target height HT, then measure. Book N, E, Z exactly as shown.")}
+    ${step(7,"Close","Re-shoot a known point (or the backsight) at the end; the app shows the difference.")}</div>
+  <div class="card"><h2>What to write in the book</h2><ul class="note" style="padding-left:18px;margin:0">
+    <li>Station, HI, backsight, its azimuth, date, observer.</li><li>Backsight check N, E, Z.</li>
+    <li>For each point: Pt No, HT, N, E, Z, remark.</li><li>Change of HT: write it on that line.</li></ul></div>
+  <div class="card"><h2>Common mistakes</h2><ul class="note" style="padding-left:18px;margin:0">
+    <li>N and E swapped (instrument may show E first).</li><li>HT changed on the pole but not in the instrument.</li>
+    <li>Old job or old station still loaded in the instrument.</li><li>Prism constant different from the one set (usually −30 mm or 0).</li></ul></div>
+  <div class="nav"><button class="btn pri" onclick="location.hash='ct'">Setups</button></div>`;
+}

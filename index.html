@@ -115,6 +115,7 @@ body.sysfont{font-family:system-ui,Roboto,"Segoe UI",sans-serif}
 .gn{flex:none;width:30px;height:30px;border-radius:50%;background:var(--hero);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px}
 .gstep b{font-weight:800}.glist{margin:0;padding-left:20px;font-size:15px}.glist li{margin:6px 0}
 .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 2px}.chips small{opacity:.7;margin-right:2px}.chips button{font:inherit;font-size:14px;padding:6px 12px;border-radius:999px;border:1px solid var(--line,#ccc);background:var(--card,#fff);color:inherit}
+#app .pill.bad{color:#fff}.nez{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:6px 0}.nez label{font-size:12px;color:var(--mut);font-weight:800}.nez input{display:block;width:100%;margin-top:2px;font:inherit;font-size:14px;font-weight:700;padding:9px 4px;letter-spacing:-.2px;border:1.5px solid var(--line);border-radius:10px;background:var(--input);color:var(--ink);text-align:right;min-width:0}
 </style>
 </head>
 <body>
@@ -128,6 +129,7 @@ window.addEventListener("error",function(ev){try{var a=document.getElementById("
  document.getElementById("rep").onclick=async function(){try{if(navigator.serviceWorker){var r=await navigator.serviceWorker.getRegistrations();for(var x of r)await x.unregister()}if(window.caches){var k=await caches.keys();for(var c of k)await caches.delete(c)}}catch(e){}location.reload()}}catch(e){}});
 </script>
 <script src="lev.js"></script>
+<script src="ct.js"></script>
 <script>
 "use strict";
 /* ===== Traverse profiles: major (closed loop, 2 sets) and minor (link or loop, 1 set) ===== */
@@ -228,6 +230,7 @@ let backTo="",guideTo="guide";homeBtn.onclick=()=>{location.hash=backTo};guideBt
 window.addEventListener("hashchange",route);
 function route(){const h=decodeURIComponent(location.hash.slice(1));lastStatus=null;backTo="";homeBtn.textContent="◀ All";guideBtn.classList.remove("hidden");
   for(const lk of["lev","fly","mlev"])if(h===lk||h.startsWith(lk+"/")){useLev(lk);guideTo=lk+"/guide";renderLev(h);window.scrollTo(0,0);return}
+  if(h==="ct"||h.startsWith("ct/")){renderCT(h);window.scrollTo(0,0);return}
   if(h===""){renderHub();window.scrollTo(0,0);return}
   let k="major",rest=h;if(h==="minor"||h.startsWith("minor/")){k="minor";rest=h==="minor"?"":h.slice(6)}else if(h==="trav")rest="";
   useTrav(k);cur=ST.includes(rest)?rest:null;guideTo=PROF.pre+"guide";
@@ -392,6 +395,7 @@ function renderHub(){
   ${work("lev","≋","Fly Levelling (traverse)",lsub(LS.lev),LS.lev.lw||LS.lev.pc.ok===false?"bad":"",null)}
   ${work("mlev","⥁","Minor Loop Levelling",`${LS.mlev.n} loop${LS.mlev.n===1?"":"s"}${LS.mlev.lc?" · "+LS.mlev.lc+" closed":""}${LS.mlev.lw?" · "+LS.mlev.lw+" warning"+(LS.mlev.lw>1?"s":""):" · middle hair · 0.6–3.0 m"}`,LS.mlev.lw?"bad":"",null)}
   ${work("minor","◇","Minor Traverse",MI.ok?tsub(MI):"Set up first · one set · 1:3000 · ±1′√n",MI.tb?"bad":MI.ok&&MI.S.done.length===MI.N?"ok":"",MI.ok?Math.round(100*MI.S.done.length/MI.N):null)}
+  ${work("ct","⊕","Coordinate Transfer",`${CT.setups.length} setup${CT.setups.length===1?"":"s"} · ${CT.setups.reduce((n,S)=>n+S.pts.length,0)} points${(()=>{const w=CT.setups.reduce((n,S)=>n+ctIssues(S).length,0);return w?" · "+w+" warning"+(w>1?"s":""):""})()}`,CT.setups.some(S=>ctIssues(S).length)?"bad":"",null)}
   <p class="note" style="margin:14px 4px 8px">Coming next (per camp schedule)</p>
   ${work("","▦","Detailing","Total station / tacheometry · Day 4–5","soon",null)}
   ${work("","⌒","Bridge Site Survey","Triangulation · reciprocal levelling · Day 6–7","soon",null)}
@@ -551,7 +555,7 @@ function blobFile(text,name,type){return new File([text],name,{type})}
 function download(f){const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
 function allTrav(fn){const prev=PK||"major",out={};for(const k of["major","minor"]){useTrav(k,true);out[k]=fn(k)}useTrav(prev,true);return out}
 function backupFile(){const t=allTrav(k=>({config:loadCfg(k).configured?loadCfg(k).cfg:null,data:D}));
-  return blobFile(JSON.stringify({app:"trav-major-v1",saved:new Date().toISOString(),config:t.major.config,data:t.major.data,minor:t.minor,...(()=>{const a=allLev(()=>LEV);return{lev:a.lev,fly:a.fly,mlev:a.mlev}})()},null,1),`survey-camp-backup-${stamp()}.json`,"application/json")}
+  return blobFile(JSON.stringify({app:"trav-major-v1",saved:new Date().toISOString(),config:t.major.config,data:t.major.data,minor:t.minor,...(()=>{const a=allLev(()=>LEV);return{lev:a.lev,fly:a.fly,mlev:a.mlev}})(),ct:CT},null,1),`survey-camp-backup-${stamp()}.json`,"application/json")}
 function backup(){download(backupFile())}
 async function shareBackup(){const f=backupFile();
   if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:f.name})}catch(e){}}else{download(f);alert("Sharing not supported here; file saved to Downloads instead.")}}
@@ -568,12 +572,12 @@ document.getElementById("fileIn").addEventListener("change",async e=>{
     useTrav("major",true);let r=mergeTrav(j.data||j,"");n+=r[0];clash=clash.concat(r[1]);
     if(j.minor){if(j.minor.config&&!loadCfg("minor").configured)localStorage.setItem(PROFILES.minor.cfgKey,JSON.stringify(j.minor.config));
       useTrav("minor",true);r=mergeTrav(j.minor.data,"minor ");n+=r[0];clash=clash.concat(r[1])}
-    useTrav(prev,true);{const r=allLev(k=>levMerge(j[k]));n+=r.lev+r.fly+r.mlev}route();
+    useTrav(prev,true);{const r=allLev(k=>levMerge(j[k]));n+=r.lev+r.fly+r.mlev;n+=ctMerge(j.ct)}route();
     alert(`Merged ${n} values.`+(clash.length?`\nDifferent from this phone (kept this phone's): ${clash.join(", ")}`:""));
   }catch(err){alert("Not a valid backup file.")}
 });
 function clearTrav(){if(prompt(`Type DELETE to clear all ${PROF.name.toLowerCase()} readings on this phone. A backup file is saved first.`)==="DELETE"){backup();D=blank();save();route()}}
-function wipe(){if(prompt('Type DELETE to clear ALL jobs on this phone (traverses and levelling). A backup file is saved first.')==="DELETE"){backup();allTrav(()=>{D=blank();save()});allLev(()=>{LEV={lines:[],peg:{d:"",mid:{a:[],b:[]},near:{a:[],b:[]}}};levSave()});route()}}
+function wipe(){if(prompt('Type DELETE to clear ALL jobs on this phone (traverses and levelling). A backup file is saved first.')==="DELETE"){backup();allTrav(()=>{D=blank();save()});allLev(()=>{LEV={lines:[],peg:{d:"",mid:{a:[],b:[]},near:{a:[],b:[]}}};levSave()});CT={known:{},setups:[]};ctSave();route()}}
 function travCSV(csv){
   const two=SETS===2,h=[["Inst St","Sighted To","Face","SetI D","SetI M","SetI S"].concat(two?["SetII D","SetII M","SetII S"]:[])];
   ST.forEach((s,i)=>{const st=D[s];OBS.forEach(([k,face,t],j)=>{const a=st.sets[0][k]||["","",""],b=st.sets[1][k]||["","",""];
@@ -585,7 +589,7 @@ function travCSV(csv){
 function exportCSV(){
   const csv=r=>r.map(v=>v==null?"":/[",\n]/.test(v)?`"${String(v).replace(/"/g,'""')}"`:v).join(",");
   const t=allTrav(k=>PROF.configured&&PROF.ready?travCSV(csv):"");
-  download(blobFile(t.major+(t.minor?"\n\n"+t.minor:"")+(a=>a.fly+a.lev+a.mlev)(allLev(k=>levCSV(csv)?"\n\n"+LP.name.toUpperCase()+levCSV(csv):"")),`survey-camp-excel-${stamp()}.csv`,"text/csv"));
+  download(blobFile(t.major+(t.minor?"\n\n"+t.minor:"")+(a=>a.fly+a.lev+a.mlev)(allLev(k=>levCSV(csv)?"\n\n"+LP.name.toUpperCase()+levCSV(csv):""))+ctCSV(csv),`survey-camp-excel-${stamp()}.csv`,"text/csv"));
 }
 if("serviceWorker"in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js");
 applyFont();route();
