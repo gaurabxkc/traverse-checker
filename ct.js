@@ -27,22 +27,31 @@ function nextName(p){const m=/^(.*?)(\d+)$/.exec(p||"");return m?m[1]+(+m[2]+1):
 
 /* --- UI --- */
 let ctCur=null,ctLast=null;
+let ctJob="";
+const CT_JOBS={"":{name:"Coordinate Transfer",sub:"Total station · station + backsight · N E Z",back:"",backTxt:"◀ Home"},
+  det:{name:"Bridge detailing",sub:"Topographic points · at least 200 m × 120 m",back:"br",backTxt:"◀ Bridge"},
+  ls:{name:"Bridge L-section",sub:"River bed centre line · 150 m up, 50 m down",back:"br",backTxt:"◀ Bridge"},
+  xs:{name:"Bridge X-sections",sub:"Every 25 m + one on the axis",back:"br",backTxt:"◀ Bridge"}};
 function renderCT(h){
   setMod("trav");guideBtn.classList.remove("hidden");guideTo="ct/guide";
   const part=h.split("/")[1];
   if(part==="guide")return renderCTGuide();
   if(part==="known")return renderCTKnown();
   const S=CT.setups.find(x=>x.id===part);if(S)return renderCTSetup(S);
-  ctCur=null;backTo="";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Home";
-  title.innerHTML="Coordinate Transfer<small>Total station · station + backsight · N E Z</small>";
-  const cards=CT.setups.map(S=>{const is=ctIssues(S),d=ctDelta(S.bsM,ctXYZ(S.bs));
+  renderCTList("")}
+function renderCTList(job){ctJob=job;const J=CT_JOBS[job];
+  ctCur=null;backTo=J.back;homeBtn.classList.remove("hidden");homeBtn.textContent=J.backTxt;
+  title.innerHTML=`${J.name}<small>${J.sub}</small>`;
+  const mine=CT.setups.filter(S=>(S.job||"")===job);
+  const cards=mine.map(S=>{const is=ctIssues(S),d=ctDelta(S.bsM,ctXYZ(S.bs));
     const st=is.length?pill("bad",is.length+" warning"+(is.length>1?"s":"")):d?pill("ok","BS ✓"):pill("wait","BS not checked");
     return `<button class="lcard${is.length?" bad":""}" onclick="location.hash='ct/${S.id}'"><div><b>At ${esc(S.stn||"?")}</b><small>BS ${esc(S.bs||"?")} · ${S.pts.length} point${S.pts.length===1?"":"s"}</small></div>${st}</button>`}).join("");
   const nk=Object.keys(CT.known).length;
-  app.innerHTML=`
+  app.innerHTML=`${job?ctJobHelp(job,mine):""}
   <div class="card"><h2>Setups</h2>${cards||'<p class="note">No setups yet. Each setup = one instrument station oriented on a backsight of known coordinates.</p>'}
     <div class="btns" style="margin-top:10px"><button class="btn pri" onclick="ctAdd()">+ New setup</button></div></div>
-  <div class="card"><h2>Known points</h2>
+  ${job?ctJobSummary(job,mine):""}
+  ${job?`<div class="card"><h2>Check</h2><div class="row"><span>Backsight / re-shot known point</span><b>≤ ${CT_TOL*1000} mm</b></div><div class="btns" style="margin-top:8px"><button class="btn" onclick="location.hash='ct/known'">Known points</button><button class="btn" onclick="ctExport()">Points CSV</button></div></div>`:`  <div class="card"><h2>Known points</h2>
     <div class="row"><span>CP1, CP2 (DGPS) + M1–M16 (Gales)</span><b>${Object.keys(CT_PRESET).length}</b></div>
     <div class="row"><span>Added on this phone</span><b>${nk}</b></div>
     <div class="btns" style="margin-top:8px"><button class="btn" onclick="location.hash='ct/known'">View / add known points</button></div></div>
@@ -52,16 +61,16 @@ function renderCT(h){
     <p class="note">10 mm is this app's default for a total station over these distances; ask the teacher if they give a different value. Warnings never block typing.</p></div>
   <div class="card"><h2>Data</h2><p class="note">Backup, merge and Excel export on the home screen include these points.</p>
     <div class="btns" style="margin-top:8px"><button class="btn pri" onclick="backup()">Save backup</button><button class="btn" onclick="ctExport()">Points CSV</button></div>
-    <div class="btns" style="margin-top:10px"><button class="btn" onclick="ctClear()">Clear coordinate data…</button></div></div>`;
+    <div class="btns" style="margin-top:10px"><button class="btn" onclick="ctClear()">Clear coordinate data…</button></div></div>`}`;
 }
-function ctAdd(prevStn,prevBs){const S={id:newId(),stn:prevStn||"",hi:"",bs:prevBs||"",ht:"",bsM:{N:"",E:"",Z:""},pts:[]};CT.setups.push(S);ctSave();location.hash="ct/"+S.id}
+function ctAdd(prevStn,prevBs){const S={id:newId(),job:ctJob||undefined,stn:prevStn||"",hi:"",bs:prevBs||"",ht:"",bsM:{N:"",E:"",Z:""},pts:[]};CT.setups.push(S);ctSave();location.hash="ct/"+S.id}
 function ctFwd(i){const S=ctCur,p=S.pts[i];if(!p.p||n3(p.N)==null||n3(p.E)==null){alert("Give the point a name and N, E first.");return}
   if(!ctXYZ(p.p)||confirm(`${p.p} already has coordinates. Replace them with this point's values?`)){CT.known[p.p]=[n3(p.N),n3(p.E),n3(p.Z)];}
   ctSave();ctAdd(p.p,S.stn)}
 function knownBox(lbl,name){const k=ctXYZ(name);return k?`<div class="row"><span>${lbl} N / E / Z</span><b>${k.N.toFixed(3)} / ${k.E.toFixed(3)} / ${k.Z==null?"–":k.Z.toFixed(3)}</b></div>`:
   (name?`<div class="row"><span>${lbl}</span>${pill("bad","not a known point")}</div><p class="note">Add ${esc(name)} under Known points (or record it as a point from an earlier setup and tap “Use as next station”).</p>`:"")}
 function renderCTSetup(S){
-  ctCur=S;ctLast=null;backTo="ct";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Setups";
+  ctCur=S;ctLast=null;ctJob=S.job||"";backTo=S.job?"br/"+S.job:"ct";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Setups";
   title.innerHTML=`At ${esc(S.stn||"?")}<small>Backsight ${esc(S.bs||"?")} · coordinate transfer</small>`;
   const opts=Object.keys(ctKnown()).map(k=>`<option value="${esc(k)}">`).join("");
   const pt=(p,i)=>`<div class="card" id="cp${i}"><div class="row" style="border:0;padding-top:0"><span><b>Point</b> <input class="pt" style="width:110px;text-transform:none" data-pi="${i}" data-k="p" value="${esc(p.p)}" autocapitalize="off" autocorrect="off" spellcheck="false"></span><div id="cpd${i}"></div></div>
@@ -109,7 +118,7 @@ function ctUpd(){const S=ctCur;if(!S)return;const st=ctXYZ(S.stn),bs=ctXYZ(S.bs)
 function ctAddPt(){const S=ctCur,last=S.pts[S.pts.length-1];S.pts.push({p:last?nextName(last.p):"",N:"",E:"",Z:"",ht:"",rem:""});ctSave();renderCTSetup(S);
   const el=document.getElementById("cp"+(S.pts.length-1));if(el){el.scrollIntoView({behavior:"smooth",block:"start"});const f=el.querySelector(S.pts[S.pts.length-1].p?'[data-k="N"]':'[data-k="p"]');if(f)setTimeout(()=>f.focus(),300)}}
 function ctDelPt(i){if(confirm("Delete point "+(ctCur.pts[i].p||i+1)+"?")){ctCur.pts.splice(i,1);ctSave();renderCTSetup(ctCur)}}
-function ctDelSetup(){const S=ctCur;if(prompt('Type DELETE to remove the setup at '+(S.stn||"?")+' and its points.')==="DELETE"){CT.setups=CT.setups.filter(x=>x!==S);ctSave();location.hash="ct"}}
+function ctDelSetup(){const S=ctCur;if(prompt('Type DELETE to remove the setup at '+(S.stn||"?")+' and its points.')==="DELETE"){CT.setups=CT.setups.filter(x=>x!==S);ctSave();location.hash=S.job?"br/"+S.job:"ct"}}
 function ctClear(){if(prompt("Type DELETE to clear all coordinate transfer setups and added known points on this phone. A backup file is saved first.")==="DELETE"){backup();CT={known:{},setups:[]};ctSave();route()}}
 function renderCTKnown(){
   ctCur=null;backTo="ct";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Setups";
@@ -125,8 +134,8 @@ function renderCTKnown(){
 function ctAddKnown(){const g=id=>document.getElementById(id).value.trim(),n=g("kn"),N=n3(g("kN")),E=n3(g("kE")),Z=n3(g("kZ"));
   if(!n||N==null||E==null){alert("Name, N and E are needed.");return}CT.known[n]=[N,E,Z];ctSave();renderCTKnown()}
 function ctDelKnown(k){if(confirm("Remove "+k+" from the added points?")){delete CT.known[k];ctSave();renderCTKnown()}}
-function ctCSV(csv){if(!CT.setups.length)return "";const r=[["Point","N","E","Z","HT","Remark","From station","Backsight"]];
-  CT.setups.forEach(S=>S.pts.forEach(p=>r.push([p.p,p.N,p.E,p.Z,p.ht||S.ht,p.rem,S.stn,S.bs])));
+function ctCSV(csv){if(!CT.setups.length)return "";const r=[["Point","N","E","Z","HT","Remark","From station","Backsight","Job"]];
+  CT.setups.forEach(S=>S.pts.forEach(p=>r.push([p.p,p.N,p.E,p.Z,p.ht||S.ht,p.rem,S.stn,S.bs,S.job?CT_JOBS[S.job].name:"Coordinate transfer"])));
   const s=[["Station","HI","HT","Backsight","BS meas N","BS meas E","BS meas Z"]];CT.setups.forEach(S=>s.push([S.stn,S.hi,S.ht,S.bs,S.bsM.N,S.bsM.E,S.bsM.Z]));
   return "\n\nCOORDINATE TRANSFER: POINTS\n"+r.map(csv).join("\n")+"\n\nCOORDINATE TRANSFER: SETUPS\n"+s.map(csv).join("\n")+"\n"}
 function ctExport(){const csv=r=>r.map(v=>v==null?"":/[",\n]/.test(v)?`"${String(v).replace(/"/g,'""')}"`:v).join(",");download(blobFile(ctCSV(csv).trim()+"\n",`coordinate-transfer-${stamp()}.csv`,"text/csv"))}
@@ -152,3 +161,28 @@ function renderCTGuide(){
     <li>Old job or old station still loaded in the instrument.</li><li>Prism constant different from the one set (usually −30 mm or 0).</li></ul></div>
   <div class="nav"><button class="btn pri" onclick="location.hash='ct'">Setups</button></div>`;
 }
+
+/* --- bridge jobs: help + summaries (L-section chainage, X-section offsets) --- */
+function ctJobHelp(job,mine){const st=["A","B","C","D"].filter(k=>ctXYZ(k));
+  const tip={det:"Shoot banks (top and toe), water edge, bed, HFL marks, structures, trees, and spot heights every 5–10 m. Cover at least 200 m along the river and 120 m across.",
+    ls:"Follow the deepest line of the bed from 150 m upstream to 50 m downstream, a point every 10–25 m and at every change in slope. Shoot them in order, upstream first. Name them LS1, LS2…",
+    xs:"For each section, go square to the flow from beyond the HFL on one bank to beyond it on the other, a point at every break in slope. Name points XS-050/1, XS-050/2… (section chainage / point). Sections every 25 m plus XS0 on the axis."}[job];
+  return `<div class="card"><h2>What to do</h2><p class="note" style="margin:0">${tip}</p>
+    <div class="row" style="margin-top:8px"><span>Bridge stations ready</span>${st.length?pill("ok",st.join(", ")):pill("bad","none yet")}</div>
+    ${st.length?"":`<p class="note">Finish Triangles · axis and tap “Use for detailing” so A, B, C, D have coordinates.</p>`}</div>`}
+function ctJobPts(mine){const o=[];mine.forEach(S=>S.pts.forEach(p=>{const N=n3(p.N),E=n3(p.E);if(p.p&&N!=null&&E!=null)o.push({p:p.p,N,E,Z:n3(p.Z),rem:p.rem})}));return o}
+function ctJobSummary(job,mine){const P=ctJobPts(mine);if(!P.length)return "";
+  if(job==="det"){const ns=P.map(x=>x.N),es=P.map(x=>x.E);
+    return `<div class="card"><h2>Summary</h2><div class="row"><span>Points</span><b>${P.length}</b></div>
+      <div class="row"><span>Extent N × E</span><b>${(Math.max(...ns)-Math.min(...ns)).toFixed(0)} m × ${(Math.max(...es)-Math.min(...es)).toFixed(0)} m</b></div>
+      <p class="note">Needs at least 200 m along the river × 120 m across.</p></div>`}
+  if(job==="ls"){let c=0;const rows=P.map((x,i)=>{if(i)c+=Math.hypot(x.N-P[i-1].N,x.E-P[i-1].E);return{...x,c}});
+    const z=BR.lsZero||"",zi=rows.find(r=>r.p===z),off=zi?zi.c:0;
+    return `<div class="card"><h2>L-section</h2>
+      <div class="row"><span>Chainage 0 at point (on the axis)</span><input class="cfgin" style="width:110px" value="${esc(z)}" onchange="BR.lsZero=this.value.trim();brSave();renderCTList('ls')" placeholder="LS7"></div>
+      ${z&&!zi?`<p class="note">No point named ${esc(z)}.</p>`:""}
+      <table style="margin-top:6px"><tr><th>Point</th><th>Chainage (m)</th><th>RL (m)</th></tr>${rows.map(r=>`<tr><td>${esc(r.p)}</td><td>${(r.c-off).toFixed(2)}</td><td>${r.Z!=null?r.Z.toFixed(3):"–"}</td></tr>`).join("")}</table>
+      <p class="note">Chainage = distance along the points in the order shot (upstream first), so upstream is negative. Range needed: −150 to +50 m.</p></div>`}
+  if(job==="xs"){const g={};P.forEach(x=>{const k=x.p.includes("/")?x.p.split("/")[0]:"(no section)";(g[k]=g[k]||[]).push(x)});
+    return Object.keys(g).map(k=>{const L=g[k],o=L[0];return `<div class="card"><h2>${esc(k)}</h2><table><tr><th>Point</th><th>Offset (m)</th><th>RL (m)</th></tr>${L.map(x=>`<tr><td>${esc(x.p)}</td><td>${Math.hypot(x.N-o.N,x.E-o.E).toFixed(2)}</td><td>${x.Z!=null?x.Z.toFixed(3):"–"}</td></tr>`).join("")}</table><p class="note">Offset from the first point of the section (one bank).</p></div>`}).join("")}
+  return ""}

@@ -101,22 +101,38 @@ function renderBR(h){
   if(part==="tri")return renderBRTri();
   if(part==="rec")return renderBRRec();
   if(part==="hyd")return renderBRHyd();
+  if(part==="set")return renderBRSet();
+  if(part==="det"||part==="ls"||part==="xs"){guideTo="ct/guide";return renderCTList(part)}
   backTo="";homeBtn.textContent="◀ Home";
   title.innerHTML="Bridge Site Survey<small>Triangulation · levelling · hydrology</small>";
   const sol=brSolve(),rc=recCalc(sol),hy=hydCalc(),is=brIssues(sol);
   const nb=BR.bases.filter(b=>baseCalc(b)).length,na=BR.obs.filter(o=>obsCalc(o).done).length,nt=sol.tc.filter(T=>T.ready).length;
   const fl=(()=>{const x=allLev(k=>k==="bfly"?LEV.lines.map(L=>{const c=lineCalc(L);return c.err!=null&&c.perm!=null?Math.abs(c.err)<=c.perm:null}):null).bfly||[];return x})();
   const step=(n,href,name,sub,state)=>`<button class="wcard ${state}" onclick="location.hash='${href}'"><div class="wic" style="font-size:20px">${n}</div><div class="wtx"><b>${name}</b><small>${sub}</small></div><span class="wgo">›</span></button>`;
+  const jobN=j=>CT.setups.filter(S=>S.job===j),jobTxt=j=>{const m=jobN(j),n=m.reduce((a,S)=>a+S.pts.length,0),w=m.reduce((a,S)=>a+ctIssues(S).length,0);return{t:`${m.length} setup${m.length===1?"":"s"} · ${n} point${n===1?"":"s"}${w?" · "+w+" warning"+(w>1?"s":""):""}`,s:w?"bad":n?"ok":""}};
+  const D=jobTxt("det"),LS=jobTxt("ls"),XS=jobTxt("xs"),sec=t=>`<p class="note" style="margin:16px 4px 8px;font-weight:800;text-transform:uppercase;letter-spacing:1px">${t}</p>`;
   app.innerHTML=`<div id="bbanner"></div>
-  <div class="hubhead"><h3>Bridge site</h3><p>Do the steps in order. Axis ${esc(BR.axis.join(""))} crosses the river.</p></div>
+  <div class="hubhead"><h3>Bridge site</h3><p>Axis ${esc(BR.axis.join(""))} crosses the river. Tap a task.</p></div>
+  ${BR.obs.length?"":`<div class="card"><h2>Start here</h2><p class="note" style="margin:0">Adds base lines AC, AD, triangles ABC, ABD and the six angles in the template's order.</p><div class="btns" style="margin-top:10px"><button class="btn pri" onclick="brSetup()">Set up the usual layout</button></div></div>`}
+  ${sec("Control")}
   ${step(1,"bfly","Fly levelling BM → "+esc(BR.axis[0]),fl.length?`${fl.length} line${fl.length>1?"s":""} · ${fl.filter(x=>x===true).length} closed OK`:"3-wire · there and back · ±24√K",fl.some(x=>x===false)?"bad":fl.some(x=>x)?"ok":"")}
   ${step(2,"br/base","Base lines",`${nb} measured · tape 1:2000 · EDM 1:5000`,BR.bases.some(b=>{const c=baseCalc(b);return c&&c.bad})?"bad":nb?"ok":"")}
   ${step(3,"br/ang","Angles",`${na} / ${BR.obs.length} done · base 2 sets, others 1 set`,BR.obs.some(o=>{const c=obsCalc(o);return c.setBad||c.s.some(s=>s&&s.faceBad)})?"bad":na&&na===BR.obs.length?"ok":"")}
   ${step(4,"br/tri","Triangles · axis length",sol.axMean!=null?`${esc(BR.axis.join(""))} = ${sol.axMean.toFixed(3)} m${sol.axPrec!=null?" · 1:"+(sol.axPrec===Infinity?"∞":Math.round(sol.axPrec)):""}`:`${nt} / ${BR.tris.length} triangles closed`,sol.tc.some(T=>T.ready&&T.bad)||sol.axBad?"bad":sol.axPrec!=null?"ok":"")}
   ${step(5,"br/rec","Reciprocal levelling",rc.err!=null?`error ${rc.err.toFixed(1)} mm · ±${rc.perm!=null?rc.perm.toFixed(1):"?"} mm${rc.rlB!=null?" · RL "+esc(BR.axis[1])+" "+rc.rlB.toFixed(3):""}`:"across the river · 2 sets",rc.bad?"bad":rc.err!=null&&rc.perm!=null?"ok":"")}
-  ${step(6,"ct","Detailing · L-section · X-sections","Coordinate Transfer page · stations from step 4","")}
-  ${step(7,"br/hyd","Hydrology",hy.vmean!=null?`mean velocity ${hy.vmean.toFixed(2)} m/s`:"float velocity · HFL · NWL · LWL",hy.vmean!=null?"ok":"")}
-  <div class="card"><h2>Bridge axis</h2>
+  ${sec("Mapping (total station)")}
+  ${step(6,"br/det","Detailing",D.t+" · 200 m × 120 m",D.s)}
+  ${step(7,"br/ls","L-section",LS.t+" · 150 m up, 50 m down",LS.s)}
+  ${step(8,"br/xs","X-sections",XS.t+" · every 25 m",XS.s)}
+  ${sec("River")}
+  ${step(9,"br/hyd","Hydrology",hy.vmean!=null?`mean velocity ${hy.vmean.toFixed(2)} m/s`:"float velocity · HFL · NWL · LWL",hy.vmean!=null?"ok":"")}
+  ${sec("Settings")}
+  ${step("⚙","br/set","Axis · limits · data","Station letters · norms · backup · CSV","")}`;
+  brBanner();
+}
+function renderBRSet(){backTo="br";homeBtn.textContent="◀ Bridge";
+  title.innerHTML="Axis · limits · data<small>Bridge site settings</small>";
+  app.innerHTML=`<div class="card"><h2>Bridge axis</h2>
     <div class="row"><span>Axis ends (this bank → far bank)</span><span style="white-space:nowrap"><input class="pt" style="width:52px" id="ax0" value="${esc(BR.axis[0])}" autocapitalize="characters"> → <input class="pt" style="width:52px" id="ax1" value="${esc(BR.axis[1])}" autocapitalize="characters"></span></div>
     <p class="note">Same letters as the template: A and B on the axis, C and D for the base triangles ABC and ABD, E, F, G… for extra triangles.</p>
     <div class="btns" style="margin-top:8px"><button class="btn" onclick="brSetup()">Set up the usual layout (ABC, ABD)</button></div></div>
@@ -128,12 +144,12 @@ function renderBR(h){
     <div class="row"><span>Other triangles</span><b>±1′√3 = ±104″</b></div>
     <div class="row"><span>Axis from two base triangles</span><b>≥ 1:2000</b></div>
     <div class="row"><span>Fly / reciprocal levelling</span><b>±24√K mm</b></div>
+    <div class="row"><span>Detailing backsight check</span><b>≤ ${CT_TOL*1000} mm</b></div>
     <p class="note">From the guidelines (bridge site items 3–7). The 20″ face check is the one used for the traverses.</p></div>
   <div class="card"><h2>Data</h2><p class="note">Backup, merge and Excel export on the home screen include the bridge data.</p>
     <div class="btns" style="margin-top:8px"><button class="btn pri" onclick="backup()">Save backup</button><button class="btn" onclick="brExport()">Bridge CSV</button></div>
     <div class="btns" style="margin-top:10px"><button class="btn" onclick="brClear()">Clear bridge data…</button></div></div>`;
-  for(const i of[0,1]){const el=document.getElementById("ax"+i);el.addEventListener("change",()=>{BR.axis[i]=el.value.trim().toUpperCase()||(i?"B":"A");brSave();renderBR("br")})}
-  brBanner();
+  for(const i of[0,1]){const el=document.getElementById("ax"+i);el.addEventListener("change",()=>{BR.axis[i]=el.value.trim().toUpperCase()||(i?"B":"A");brSave();renderBRSet()})}
 }
 function brSetup(){if((BR.obs.length||BR.tris.length||BR.bases.length)&&!confirm("Add the usual layout? Existing entries are kept; missing ones are added."))return;
   const [A,B]=BR.axis,C="C",D="D";
@@ -141,7 +157,7 @@ function brSetup(){if((BR.obs.length||BR.tris.length||BR.bases.length)&&!confirm
   const addT=(p)=>{if(!BR.tris.some(t=>t.p.slice().sort().join()===p.slice().sort().join()))BR.tris.push({id:newId(),p,base:true})};addT([A,B,C]);addT([A,B,D]);
   // reading order as in the template: at A: C→B, B→D; at B: D→A, A→C; at C: B→A; at D: A→B
   const addO=(at,bs,fs)=>{if(!findObs(at,bs,fs))BR.obs.push({id:newId(),at,bs,fs,base:true,sets:[{},{}]})};
-  addO(A,C,B);addO(A,B,D);addO(B,D,A);addO(B,A,C);addO(C,B,A);addO(D,A,B);brSave();renderBR("br")}
+  addO(A,C,B);addO(A,B,D);addO(B,D,A);addO(B,A,C);addO(C,B,A);addO(D,A,B);brSave();route()}
 
 /* base lines */
 function renderBRBase(){backTo="br";homeBtn.textContent="◀ Bridge";
@@ -240,7 +256,7 @@ function brToCT(){const sol=brSolve(),X=brCoords(sol),rc=recCalc(sol);const Z={}
   const names=Object.keys(X);const clash=names.filter(k=>ctXYZ(k)&&!CT.known[k]);
   if(clash.length){alert(`${clash.join(", ")} already name traverse control points. Rename the bridge stations first (e.g. BA, BB).`);return}
   names.forEach(k=>{CT.known[k]=[X[k].N,X[k].E,Z[k]??(CT.known[k]?CT.known[k][2]:null)]});ctSave();
-  alert(`Added ${names.join(", ")} to Known points. Set up the total station on one of them and backsight another.`);location.hash="ct"}
+  alert(`Added ${names.join(", ")} to Known points. Set up the total station on one of them and backsight another.`);location.hash="br/det"}
 
 /* reciprocal levelling */
 function renderBRRec(){backTo="br";homeBtn.textContent="◀ Bridge";const [A,B]=BR.axis;
@@ -342,7 +358,7 @@ function renderBRGuide(){backTo="br";homeBtn.textContent="◀ Bridge";guideBtn.c
     ${s(4,"Angles","At A, B, C, D: 2 sets (Set I from 0°, Set II from 90°), FL then FR. Sets within 1′, faces within 20″. Someone must cross to B.")}
     ${s(5,"Triangles","The app spreads the misclosure (base ±30″√3, others ±1′√3) and gives AB from each triangle.")}
     ${s(6,"Reciprocal levelling","Level near A: read A then B. Level near B: read B then A. True difference = mean of the two. Error within 24√K, K = 2 × AB.")}
-    ${s(7,"Coordinates","Assume A (or use given values) and a bearing for AB; the app computes B, C, D. Tap “Use for detailing”.")}
+    ${s(7,"Coordinates","Assume A (or use given values) and a bearing for AB; the app computes B, C, D. Tap “Use for detailing”, then use Detailing, L-section and X-sections on the bridge menu.")}
     ${s(8,"Detailing","At least 200 m along the river × 120 m across. Total station on A/B/C/D, backsight another. Shoot banks, water edge, bed, HFL marks, structures, trees, spot heights every 5–10 m.")}
     ${s(9,"L-section and X-sections","Bed centre line 150 m upstream to 50 m downstream, chainage 0 at the axis. X-sections every 25 m plus one on the axis, across the whole valley beyond the HFL. Name points LS+025, XS-050/3 so they are easy to sort later.")}
     ${s(10,"Hydrology","Float velocity (3–5 runs), HFL, NWL, LWL, bed material.")}</div>
