@@ -178,7 +178,7 @@ function renderBRBase(){backTo="br";homeBtn.textContent="◀ Bridge";
   brBanner()}
 function brMode(i,m){BR.bases[i].mode=m;brSave();renderBRBase()}
 function brAddBase(){BR.bases.push({id:newId(),a:BR.axis[0],b:"",fw:"",bw:"",mode:"edm"});brSave();renderBRBase()}
-function brDel(col,i){if(confirm("Delete this entry?")){BR[col].splice(i,1);brSave();route()}}
+function brDel(col,i){const x=BR[col][i],nm=col==="obs"?`angle ∠${x.bs}${x.at}${x.fs} and all its readings`:col==="tris"?`triangle △${x.p.join("")}`:`base line ${x.a}${x.b} and its distances`;if(confirm(`Delete ${nm}? This cannot be undone.`)){BR[col].splice(i,1);brSave();route()}}
 
 /* angles */
 const FACES=[["lb","FL","BS"],["lf","FL","FS"],["rb","FR","BS"],["rf","FR","FS"]];
