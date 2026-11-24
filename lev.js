@@ -3,6 +3,7 @@
 const LEVP={
   lev:{key:"lev-v1",home:"lev",name:"Fly Levelling",lim:{wire:0.003,chk:"tb",lo:0.6,hi:3.0,warn:2.0,balance:1,k:24,peg:10000}},   // linked to the traverse
   fly:{key:"fly-v1",home:"fly",name:"Unlinked Fly Levelling",lim:{wire:0.003,chk:"mean",lo:0.6,hi:2.0,warn:null,balance:1,k:24,peg:10000}},
+  bfly:{key:"bfly-v1",home:"bfly",name:"Bridge Fly Levelling",lim:{wire:0.003,chk:"mean",lo:0.6,hi:2.0,warn:null,balance:1,k:24,peg:10000}}, // BM -> bridge axis A, same norms as fly
   mlev:{key:"mlev-v1",home:"mlev",name:"Minor Loop Levelling",mid:true,book:"rf",lim:{wire:0.003,chk:"tb",lo:0.6,hi:3.0,warn:null,balance:1,k:24,peg:10000}}}; // middle hair only, 0.6-3.0 m, loop through the minor stations; camp norms: 0.6-2 m, |mean-mid| <= 3 mm
 let LK="lev",LP=LEVP.lev,LIM_LEV=LP.lim,LEV;
 function useLev(k){LK=k;LP=LEVP[k];LIM_LEV=LP.lim;try{LEV=JSON.parse(localStorage.getItem(LP.key))}catch(e){LEV=null}
@@ -82,8 +83,8 @@ function renderLev(h){
   if(part==="peg")return renderPeg();
   const L=LEV.lines.find(x=>x.id===part);
   if(L)return renderLine(L);
-  levCur=null;backTo="";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Home";
-  title.innerHTML=`${LP.name}<small>${LK==="fly"?"0.6–2.0 m · |mean − mid| ≤ 3 mm":LK==="mlev"?"Middle hair · 0.6–3.0 m · ±24√K":"Fly levelling · two peg test"}</small>`;
+  levCur=null;backTo=LK==="bfly"?"br":"";homeBtn.classList.remove("hidden");homeBtn.textContent=LK==="bfly"?"◀ Bridge":"◀ Home";
+  title.innerHTML=`${LP.name}<small>${LK==="bfly"?"BM → bridge axis · 3-wire · ±24√K":LK==="fly"?"0.6–2.0 m · |mean − mid| ≤ 3 mm":LK==="mlev"?"Middle hair · 0.6–3.0 m · ±24√K":"Fly levelling · two peg test"}</small>`;
   const pc=pegCalc();
   const cards=LEV.lines.map(L=>{const c=lineCalc(L),is=levIssues(L);
     const st=is.length?pill("bad",is.length+" warning"+(is.length>1?"s":"")):c.err!=null?pill("ok","closed "+(c.err>0?"+":"")+c.err+" mm"):pill("wait",L.setups.length+" setups");
@@ -100,7 +101,7 @@ function renderLev(h){
     ${LP.mid?"":`<div class="row"><span>Two peg collimation</span><b>≥ 1 : 10000</b></div>
     <div class="row"><span>3-wire check |${chkLbl()}|</span><b>≤ 3 mm</b></div>`}
     <div class="row"><span>Staff reading (middle)</span><b>${rngTxt()}${LIM_LEV.warn?" · prefer ≤ "+LIM_LEV.warn+" m":""}</b></div>
-    <p class="note">${LK==="mlev"?"Camp norms for levelling through the minor stations: middle hair only, readings 0.6–3.0 m, closing error ±24√K. K comes from the traverse leg lengths (or type it). Corrections are spread equally over the setups. Book: Rise and Fall format (15).":LK==="fly"?"Norms given at camp: readings 0.6–2.0 m, |mean − mid| ≤ 3 mm. BS/FS balance, 24√K and 1:10000 from the guidelines.":"BS/FS balance, 24√K and 1:10000 are from the guidelines. 0.6–3.0 m is the guideline's turning-point rule (road alignment item 14); ≤ 2 m is the classroom habit, shown in yellow only. The 3 mm 3-wire limit is this app's default."}</p></div>
+    <p class="note">${LK==="mlev"?"Camp norms for levelling through the minor stations: middle hair only, readings 0.6–3.0 m, closing error ±24√K. K comes from the traverse leg lengths (or type it). Corrections are spread equally over the setups. Book: Rise and Fall format (15).":LK==="bfly"?"Bridge site: carry the RL from the given BM to the axis end on your bank and close the circuit (back to the BM). Same norms as the fly levelling: 0.6–2.0 m, |mean − mid| ≤ 3 mm, ±24√K.":LK==="fly"?"Norms given at camp: readings 0.6–2.0 m, |mean − mid| ≤ 3 mm. BS/FS balance, 24√K and 1:10000 from the guidelines.":"BS/FS balance, 24√K and 1:10000 are from the guidelines. 0.6–3.0 m is the guideline's turning-point rule (road alignment item 14); ≤ 2 m is the classroom habit, shown in yellow only. The 3 mm 3-wire limit is this app's default."}</p></div>
   <div class="card"><h2>Data safety</h2><p class="note">Backup, merge and Excel export on the Traverse screen include levelling too.</p>
     <div class="btns" style="margin-top:8px"><button class="btn pri" onclick="backup()">Save backup</button><button class="btn" onclick="exportCSV()">Excel export</button></div>
     <div class="btns" style="margin-top:10px"><button class="btn" onclick="clearLev()">Clear levelling data…</button></div></div>`;
