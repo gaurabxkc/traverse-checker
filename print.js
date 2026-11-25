@@ -323,3 +323,26 @@ function prAutofit(){const w=document.getElementById("prv"),r=document.getElemen
     for(let it=0;it<4;it++){const h=pg.getBoundingClientRect().height/z;if(h<=lim)break;const bh=b.getBoundingClientRect().height/z;f=Math.max(.45,f*(bh-(h-lim)-4)/bh);b.style.zoom=f.toFixed(3)}
     const qb=Q[i]&&Q[i].querySelector(".pbody");if(qb)qb.style.zoom=f<1?f.toFixed(3):""})}
 function prPrint(){prRefresh();setTimeout(()=>window.print(),50)}
+
+/* ===== Book view at the bottom of every job screen (same sheets as the print book, live) ===== */
+let PR_INLINE=false,INB=null;
+const _prPage=prPage;
+prPage=function(fmt,title,sub,body,meta){return PR_INLINE?`<div class="pin"><div class="pinh">${title.replace(/<br>.*$/,"")}${sub?" · "+sub:""}</div>${body}</div>`:_prPage(fmt,title,sub,body,meta)};
+function prInl(fn){PR_INLINE=true;try{return fn()}finally{PR_INLINE=false}}
+function prInlPages(pages,keep){return pages.filter(p=>!p.skip&&(!keep||keep(p.t))).map(p=>p.h).join("")}
+function inBookHTML(){const h=decodeURIComponent(location.hash.slice(1)),sp=h.split("/");
+  if(h==="trav"||h==="minor"){const k=h==="trav"?"major":"minor";return prInl(()=>prInlPages(prTravPages(k)))}
+  if(typeof cur==="string"&&cur&&ST.includes(cur)&&(h===cur||h==="minor/"+cur)){const i=ST.indexOf(cur),two=SETS===2,L=legs().filter(l=>l.from===cur||l.to===cur);
+    return `<div class="pin"><div class="pinh">${PK==="minor"?"Minor":"Major"} Traverse · Horizontal Angle Observation Sheet</div><table class="bk hcr${two?"":" one"}">${prHcrHead(two)}${prHcrBlock(cur,i,two)}</table></div>
+    <div class="pin"><div class="pinh">Distance Measurement Sheet</div>${prDistPage(L,LIM.prec,"")}</div>`}
+  if(sp[0]==="br"){const tags={base:["Bridge: base lines"],ang:["Bridge: base triangle angles","Bridge: triangulation angles"],tri:["Bridge: angle correction","Bridge: drawing"],rec:["Bridge: reciprocal levelling"],hyd:["Bridge: summary"]}[sp[1]];
+    if(tags)return prInl(()=>prInlPages(prBrPages(),t=>tags.includes(t)))}
+  if(sp[0]==="ct"&&sp[1]&&!["guide","known"].includes(sp[1])){const S=CT.setups.find(x=>x.id===sp[1]);if(S&&S.pts.length){const keep=CT.setups;CT.setups=[S];try{return prInl(prCTPages)}finally{CT.setups=keep}}}
+  return ""}
+function inBookMount(){const app=document.getElementById("app");if(!app||document.getElementById("inbook"))return;let html="";try{html=inBookHTML()}catch(e){html=""}
+  if(!html)return;app.insertAdjacentHTML("beforeend",`<div class="card" id="inbook"><h2>Field book (copy these values)</h2><div class="pbwrap"><div class="pb pbin" id="inbookc">${html}</div></div><p class="note">Same sheets as the print book. Scroll sideways on a phone.</p></div>`)}
+function inBookRefresh(){const c=document.getElementById("inbookc");if(!c)return;try{const h=inBookHTML();if(h)c.innerHTML=h}catch(e){}}
+(function(){const app=document.getElementById("app");if(!app)return;
+  new MutationObserver(()=>{if(!document.getElementById("inbook"))inBookMount()}).observe(app,{childList:true});
+  document.addEventListener("input",()=>{clearTimeout(inBookRefresh.t);inBookRefresh.t=setTimeout(inBookRefresh,400)});
+  document.addEventListener("change",()=>{clearTimeout(inBookRefresh.t);inBookRefresh.t=setTimeout(inBookRefresh,200)})})();
