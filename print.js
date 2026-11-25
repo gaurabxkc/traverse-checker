@@ -56,7 +56,10 @@ function prHcrHead(two){const set=`<th colspan="3">HCR Observation</th><th>Face<
   return `<tr><th rowspan="3" class="st">Inst st</th><th rowspan="3">Sighted to</th><th rowspan="3" class="fc">F<br>A<br>C<br>E</th><th colspan="7">Set-I</th>${two?`<th colspan="7">Set-II</th><th colspan="3" rowspan="2">Mean Horizontal<br>Angle {(I+II)/2}</th>`:""}<th rowspan="3">Horizontal<br>Distance<br>(m)</th><th rowspan="3" class="rm">Remarks</th></tr>
   <tr>${set}${two?set:""}</tr><tr>${sub}${two?sub+"<th>d</th><th>m</th><th>s</th>":""}</tr>`}
 /* control points for the Gale's table: typed on the print page, else known points (coordinate transfer list) */
-function prXY(k,p){const t=PR.ctl[k][p];if(t&&num(t.N)!=null&&num(t.E)!=null)return{N:+t.N,E:+t.E};const c=typeof ctXYZ==="function"?ctXYZ(p):null;return c&&c.N!=null?{N:c.N,E:c.E}:null}
+function prXY(k,p){const t=PR.ctl[k][p];if(t&&num(t.N)!=null&&num(t.E)!=null)return{N:+t.N,E:+t.E};const c=typeof ctXYZ==="function"?ctXYZ(p):null;if(c&&c.N!=null)return{N:c.N,E:c.E};
+  return k==="minor"?prMajorXY()[p]||null:null}
+// stations of the major Gale's table computed in the app, so the minor table can start from them
+function prMajorXY(){const prev=PK,o={};try{useTrav("major",true);const G=prGales("major");if(!G.err){o[ST[0]]=G.start;G.rows.forEach(x=>{o[x.c]={N:x.N,E:x.E}})}}catch(e){}finally{useTrav(prev||"major",true)}return o}
 const prBrg=(a,b)=>mod360(Math.atan2(b.E-a.E,b.N-a.N)*180/Math.PI);
 function prGalesNeed(k){const prev=PK;useTrav(k,true);const need=LINK?[AREF,ST[0],ST[N-1],DREF]:[ST[0],ST[1]];const loop=!LINK;useTrav(prev||"major",true);return{need:[...new Set(need)],loop}}
 // Gale's traverse table. Bearing of next leg = bearing + angle ± 180°; angular error spread i/N on the bearings; Bowditch on lat/dep.
@@ -64,7 +67,7 @@ function prGales(k){const S=summary();if(S.done.length!==N)return{err:"All stati
   const ang=ST.map(s=>Math.round(stCalc(s).final*3600)/3600),L=legs();const len=(a,b)=>{const l=L.find(x=>(x.from===a&&x.to===b)||(x.from===b&&x.to===a));return l?l.avg:null};
   const nb=(b,a)=>{const x=b+a;return x>540?x-540:x<180?x+180:x-180};
   let start,b0,bEnd,stations,legNames;
-  if(LINK){const A=prXY(k,AREF),S0=prXY(k,ST[0]),SE=prXY(k,ST[N-1]),AE=prXY(k,DREF);if(!A||!S0||!SE||!AE)return{err:"Coordinates of "+[AREF,ST[0],ST[N-1],DREF].join(", ")+" are needed."};
+  if(LINK){const A=prXY(k,AREF),S0=prXY(k,ST[0]),SE=prXY(k,ST[N-1]),AE=prXY(k,DREF);if(!A||!S0||!SE||!AE)return{err:"Coordinates of "+[...new Set([AREF,ST[0],ST[N-1],DREF])].join(", ")+" are needed."};
     b0=prBrg(A,S0);bEnd=prBrg(SE,AE);start=S0;stations=ST.slice();legNames=ST.slice(0,-1).map((s,i)=>[s,ST[i+1]])}
   else{const P0=prXY(k,ST[0]);const typed=dmsTxt(PR.ctl[k].brg);const P1=prXY(k,ST[1]);if(!P0)return{err:"Coordinates of "+ST[0]+" are needed."};
     b0=typed!=null?typed:P1?prBrg(P0,P1):null;if(b0==null)return{err:"Bearing "+ST[0]+"→"+ST[1]+" (or coordinates of "+ST[1]+") is needed."};
@@ -288,10 +291,10 @@ function renderPrint(h){backTo="";homeBtn.textContent="◀ Home";homeBtn.classLi
   const keys=av.map(b=>b[0]).filter(k=>PR.pick[k]);
   const f=(k,l,ph)=>`<label class="pf"><span>${l}</span><input value="${prE(PR[k])}" placeholder="${ph||""}" oninput="PR['${k}']=this.value;prSave();prRefresh()"></label>`;
   let ctl="";for(const k of["major","minor"]){if(!keys.includes(k))continue;const g=prGalesNeed(k),prev=PK;useTrav(k,true);const G=prGales(k);useTrav(prev||"major",true);
-    ctl+=`<div class="card"><h2>${k==="major"?"Major":"Minor"} Gale's table control</h2>${g.need.map(p=>{const v=PR.ctl[k][p]||{},c=typeof ctXYZ==="function"?ctXYZ(p):null;
+    ctl+=`<div class="card"><h2>${k==="major"?"Major":"Minor"} Gale's table control</h2>${g.need.map(p=>{const v=PR.ctl[k][p]||{},c=(typeof ctXYZ==="function"?ctXYZ(p):null)||(k==="minor"?prMajorXY()[p]:null);
       return `<div class="nez"><label>${prE(p)} N<input inputmode="decimal" value="${prE(v.N||"")}" placeholder="${c&&c.N!=null?c.N:""}" oninput="prCtl('${k}','${prE(p)}','N',this.value)"></label><label>${prE(p)} E<input inputmode="decimal" value="${prE(v.E||"")}" placeholder="${c&&c.E!=null?c.E:""}" oninput="prCtl('${k}','${prE(p)}','E',this.value)"></label><label>&nbsp;<small>${c?"known":"needed"}</small></label></div>`}).join("")}
     ${g.loop?`<div class="nez"><label>Bearing ${prE(g.need[0])}→${prE(g.need[1]||"")} (optional)<input value="${prE(PR.ctl[k].brg||"")}" placeholder="d m s, else from coordinates" oninput="PR.ctl['${k}'].brg=this.value;prSave();prRefresh()"></label></div>`:""}
-    <p class="note">${G.err?"⚠ "+prE(G.err):"✓ Gale's table is included."} Grey values come from the known points list; type to override.</p></div>`}
+    <p class="note">${G.err?"⚠ "+prE(G.err):"✓ Gale's table is included."} Grey values come from the known points list${k==="minor"?" or the major Gale's table":""}; type to override.</p></div>`}
   app.innerHTML=`<div class="card"><h2>What to print</h2>${av.length?av.map(([k,n])=>`<label class="pchk"><input type="checkbox" ${PR.pick[k]?"checked":""} onchange="PR.pick['${k}']=this.checked;prSave();renderPrint('print')"> ${n}</label>`).join(""):'<p class="note">Nothing recorded yet.</p>'}</div>
   <div class="card"><h2>Sheet header</h2><div class="pfs">${f("group","Group No",loadCfg("major").cfg.group)}${f("obs","Observer")}${f("rec","Recorder")}${f("inst","Instrument")}${f("date","Date","2083/08/..")}${f("wx","Weather")}${f("temp","Temperature")}</div>
     <p class="note">Levelling lines use the observer, date and weather typed in each line's book.</p></div>

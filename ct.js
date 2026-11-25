@@ -1,8 +1,7 @@
 "use strict";
 /* ===== Coordinate transfer: total station setups (station + backsight), backsight check, recorded points (Pt No, N, E, Z) ===== */
 const CT_KEY="ct-v1";
-// Control: CP1/CP2 = DGPS (given). M1-M16 = Major Gales table (2026-11-24). Z only where known.
-const CT_PRESET={"CP1":[3063153.032,626869.647,1335.756],"CP2":[3063058.209,626869.798,1335.131],"M1":[3062987.924,626907.506,null],"M2":[3062871.895,626923.747,null],"M3":[3062883.74,627047.491,null],"M4":[3062854.793,627126.533,null],"M5":[3062890.655,627250.72,null],"M6":[3062998.305,627292.363,null],"M7":[3063034.306,627345.667,null],"M8":[3063162.956,627353.837,null],"M9":[3063208.836,627434.563,null],"M10":[3063302.093,627368.338,null],"M11":[3063325.23,627287.046,null],"M12":[3063252.992,627223.388,null],"M13":[3063307.138,627131.203,null],"M14":[3063285.96,627057.12,null],"M15":[3063168.151,627020.447,null],"M16":[3063192.6,626936.029,null]};
+const CT_PRESET={}; // no built-in control: each group adds its own known points (or merges a backup that has them)
 const CT_TOL=0.010; // backsight / known-point check, metres
 let CT;
 function ctLoad(){try{CT=JSON.parse(localStorage.getItem(CT_KEY))}catch(e){CT=null}if(!CT||!Array.isArray(CT.setups))CT={known:{},setups:[]};if(!CT.known)CT.known={}}
@@ -52,8 +51,8 @@ function renderCTList(job){ctJob=job;const J=CT_JOBS[job];
     <div class="btns" style="margin-top:10px"><button class="btn pri" onclick="ctAdd()">+ New setup</button></div></div>
   ${job?ctJobSummary(job,mine):""}
   ${job?`<div class="card"><h2>Check</h2><div class="row"><span>Backsight / re-shot known point</span><b>≤ ${CT_TOL*1000} mm</b></div><div class="btns" style="margin-top:8px"><button class="btn" onclick="location.hash='ct/known'">Known points</button><button class="btn" onclick="ctExport()">Points CSV</button></div></div>`:`  <div class="card"><h2>Known points</h2>
-    <div class="row"><span>CP1, CP2 (DGPS) + M1–M16 (Gales)</span><b>${Object.keys(CT_PRESET).length}</b></div>
-    <div class="row"><span>Added on this phone</span><b>${nk}</b></div>
+    <div class="row"><span>Known points on this phone</span><b>${nk}</b></div>
+    ${nk?"":'<p class="note">Add your control points (given CP coordinates, Gales results) before setting up.</p>'}
     <div class="btns" style="margin-top:8px"><button class="btn" onclick="location.hash='ct/known'">View / add known points</button></div></div>
   <div class="card"><h2>Limits</h2>
     <div class="row"><span>Backsight check (measured vs known)</span><b>≤ ${CT_TOL*1000} mm</b></div>
