@@ -36,7 +36,8 @@ function w3(a,mid){ // [T,M,B] -> mean (template: ROUND(AVERAGE,3)), stadia, che
   const mean=r3((t+m+b)/3),s=t-b,chk=LIM_LEV.chk==="mean"?(t+m+b)/3-m:(t+b)/2-m;
   return{t,m,b,mean,s,dist:s*100,chk,rng:rngOf(m),order:t>=m&&m>=b,bad:Math.abs(chk)>LIM_LEV.wire+1e-9||!(t>=m&&m>=b)}}
 function lineCalc(L){
-  const mid=isMid(L);let rl0=num(L.rl);if(rl0==null&&L.dir==="bw"){const F=pairOf(L);if(F&&F.dir==="fw"){const e=lineCalc(F).end;if(e!=null)rl0=e}}let rl=rl0,sBS=0,sFS=0,sR=0,sF=0,dist=0;const rows=[];
+  const mid=isMid(L);let rl0=num(L.rl);let rlFrom=rl0!=null?"typed":null;if(rl0==null&&L.dir==="bw"){const F=pairOf(L);if(F&&F.dir==="fw"){const e=lineCalc(F).end;if(e!=null){rl0=e;rlFrom="FW end"}}}
+  if(rl0==null&&L.start){const k=knownRL(L.start,L);if(k){rl0=k.rl;rlFrom=k.line}}let rl=rl0,sBS=0,sFS=0,sR=0,sF=0,dist=0;const rows=[];
   L.setups.forEach((u,i)=>{
     const B=w3(u.bs.r,mid),F=w3(u.fs.r,mid);let rise=null,rlF=null,bal=null;
     if(B&&F){rise=r3(B.mean-F.mean);if(rl!=null){rlF=r3(rl+rise)}sBS+=B.mean;sFS+=F.mean;if(rise>=0)sR+=rise;else sF+=-rise}
@@ -57,7 +58,7 @@ function lineCalc(L){
       if(i===L.setups.length-1||!p||/^TP/i.test(p)||p===L.start)return;
       const share=mid||!dist?(i+1)/L.setups.length:cum/dist,adj=r3(r.rlF-eM*share),x=tbm.find(q=>q.p===p);
       if(x){x.vals.push(adj);x.adj=r3(x.vals.reduce((a,b)=>a+b,0)/x.vals.length)}else tbm.push({p,raw:r.rlF,vals:[adj],adj})})}
-  return{aK,rows,sBS:r3(sBS),sFS:r3(sFS),sR:r3(sR),sF:r3(sF),dist,K,perm,err,end,known,done,rl0,tbm,
+  return{rlFrom,aK,rows,sBS:r3(sBS),sFS:r3(sFS),sR:r3(sR),sF:r3(sF),dist,K,perm,err,end,known,done,rl0,tbm,
     arith:done&&rl0!=null?Math.abs((sBS-sFS)-(sR-sF))<0.0015&&Math.abs((sBS-sFS)-(end-rl0))<0.0015:null};
 }
 /* --- FW / BW pairs: the same route levelled forward, then backward. Template Fly Levelling:
@@ -132,9 +133,18 @@ function renderLev(h){
     <div class="btns" style="margin-top:8px"><button class="btn pri" onclick="backup()">Save backup</button><button class="btn" onclick="exportCSV()">Excel export</button></div>
     <div class="btns" style="margin-top:10px"><button class="btn" onclick="clearLev()">Clear levelling data…</button></div></div>`;
 }
-function knownRL(p,self){if(!p)return null;let hit=null;allLev(()=>{if(hit)return;
+// RL of a named point from any levelling job: FW/BW run far point (mean) > closed line (adjusted) > RL typed as another line's start.
+// Names are matched exactly (trimmed), so the same BM name links jobs on its own. Guarded against loops between lines.
+const KR_BUSY=new Set();let krMemo={t:0,m:new Map()};
+function knownRL(p,self){p=String(p||"").trim();if(!p)return null;const sid=self&&self.id||"";const now=Date.now();
+  if(now-krMemo.t>250)krMemo={t:now,m:new Map()};const mk=p+"|"+sid;if(krMemo.m.has(mk))return krMemo.m.get(mk);
+  if(KR_BUSY.has(p))return null;KR_BUSY.add(p);let hit=null;
+  try{hit=knownRL0(p,self)}finally{KR_BUSY.delete(p)}krMemo.m.set(mk,hit);return hit}
+function knownRL0(p,self){let hit=null;allLev(()=>{if(hit)return;
     for(const L of LEV.lines){if(L.dir!=="fw"||L===self)continue;const B=pairOf(L);if(!B||B===self)continue;const pc=pairCalc(L,B);if(pc.done&&pc.endP===p&&pc.rlEnd!=null){hit={rl:pc.rlEnd,line:pc.name+" (FW/BW mean)"};return}}
-    for(const L of LEV.lines){if(L===self||L.id===(self&&self.id))continue;const c=lineCalc(L);const x=c.tbm.find(q=>q.p===p);if(x){hit={rl:x.adj,line:L.name};return}}});return hit}
+    for(const L of LEV.lines){if(L===self||L.id===(self&&self.id))continue;const c=lineCalc(L);const x=c.tbm.find(q=>q.p===p);if(x){hit={rl:x.adj,line:L.name};return}}});
+  if(!hit)allLev(()=>{if(hit)return;for(const L of LEV.lines){if(L===self||L.id===(self&&self.id))continue;if(String(L.start||"").trim()===p&&num(L.rl)!=null){hit={rl:num(L.rl),line:L.name+" (start RL)"};return}}});
+  return hit}
 function useKnown(){const k=knownRL(levCur.start,levCur);if(k){levCur.rl=k.rl.toFixed(3);levSave();renderLine(levCur)}}
 function setLevMode(m){if(levCur.setups.length&&!confirm("Switch reading mode for this line? Readings already typed stay saved."))return;levCur.mode=m;levSave();renderLine(levCur)}
 function minorRoute(){try{const c=loadCfg("minor").cfg;const mN=Array.from({length:c.m},(_,i)=>c.px+(i+1));return c.type==="link"?[c.b].concat(mN,[c.c]).filter(Boolean):c.cps.concat(mN)}catch(e){return[]}}
@@ -184,8 +194,8 @@ function renderLine(L){if(L.dir==="bw"&&!L.start){const F=pairOf(L);if(F&&F.setu
   <details class="card" ${L.setups.length?"":"open"}><summary><h2 style="display:inline">Line details</h2> <small class="note">${esc(L.start||"?")} · RL ${esc(L.rl||"?")} · ${isMid(L)?"middle only":"3-wire"}</small></summary>
     <div class="row"><span>Name</span><input class="cfgin" data-f="name" value="${esc(L.name||"")}"></div>
     <div class="row"><span>Start point (BM or station)</span><input class="cfgin" data-f="start" value="${esc(L.start||"")}"></div>
-    <div class="row"><span>RL of start (m)</span><input class="cfgin" inputmode="decimal" data-f="rl" value="${esc(L.rl||"")}" placeholder="1312.034"></div>
-    ${(()=>{const k=knownRL(L.start,L);return k&&String(k.rl)!==String(L.rl)?`<div class="btns" style="margin:6px 0"><button class="btn" onclick="useKnown()">Use RL ${k.rl.toFixed(3)} of ${esc(L.start)} from “${esc(k.line)}”</button></div>`:""})()}
+    <div class="row"><span>RL of start (m)</span><input class="cfgin" inputmode="decimal" data-f="rl" value="${esc(L.rl||"")}" placeholder="${(()=>{const c=lineCalc(L);return c.rl0!=null&&!num(L.rl)&&num(L.rl)!==0?c.rl0.toFixed(3)+" auto":"type RL"})()}"></div>
+    ${(()=>{const c=lineCalc(L);return num(L.rl)==null&&c.rl0!=null?`<p class="note">Start RL ${c.rl0.toFixed(3)} is linked automatically from “${esc(c.rlFrom)}” (same name ${esc(L.start)}). Type a value only to override.</p>`:num(L.rl)==null?`<p class="note">No other job has an RL for “${esc(L.start||"?")}” yet. Type it, or name the start exactly like the BM in the job that carried its RL.</p>`:""})()}
     ${LP.mid?"":`<div class="row"><span>Readings</span><div class="seg" style="width:210px"><button class="${L.mode!=="mid"?"on":""}" onclick="setLevMode('3w')">3-wire</button><button class="${L.mode==="mid"?"on":""}" onclick="setLevMode('mid')">Middle only</button></div></div>`}
     ${isMid(L)?`<div class="row"><span>Loop length K (km)</span><input class="cfgin" inputmode="decimal" data-f="kKm" value="${esc(L.kKm||"")}" placeholder="${LK==="bloop"?"auto from bridge":"auto from traverse"}"></div><p class="note">Middle hair only: no stadia, so K comes from the ${LK==="bloop"?"bridge triangulation distances":"traverse leg lengths"} between the named stations (leave blank) or type it. Error is spread equally over the setups.</p>`:""}
     <div class="row"><span>Close on other BM</span><input class="cfgin" data-f="closeP" value="${esc(L.closeP||"")}" placeholder="(blank = start)"></div>
