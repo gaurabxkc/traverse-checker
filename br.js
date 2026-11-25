@@ -3,7 +3,7 @@
    station coordinates, reciprocal levelling, hydrology. Maths follows the template sheets
    "Bridge Site Base Triangles", "Bridge Site Triangulation", "Bridge Site Angle Correction", "Reciprocal Levelling". ===== */
 const BR_KEY="br-v1";
-const BR_LIM={face:20,set:60,base:30,other:60,axis:2000,tape:2000,edm:5000,k:24,wire:0.003};
+const BR_LIM={wcMin:30,wcMax:120,face:20,set:60,base:30,other:60,axis:2000,tape:2000,edm:5000,k:24,wire:0.003};
 let BR;
 function brBlank(){return{axis:["A","B"],obs:[],bases:[],tris:[],start:{N:"",E:"",brg:["","",""]},
   rec:{s1:{a:["","",""],b:["","",""]},s2:{a:["","",""],b:["","",""]},rlA:"",L:""},
@@ -41,7 +41,8 @@ function triCalc(t){const ang=t.p.map((v,i)=>{const o=findObs(v,t.p[(i+1)%3],t.p
   const base=C<0?-Math.floor(-C/3):Math.floor(C/3),rem=C-3*base;
   const order=[0,1,2].sort((i,j)=>sec[j]-sec[i]);const corr=[base,base,base];for(let k=0;k<Math.abs(rem);k++)corr[order[k]]+=Math.sign(rem);
   const lim=(t.base?BR_LIM.base:BR_LIM.other)*Math.sqrt(3);
-  return{t,ang,ready:true,obs:sec.map(s=>s/3600),err,corr,adj:sec.map((s,i)=>(s+corr[i])/3600),lim,bad:Math.abs(err)>lim+1e-6}}
+  const adj=sec.map((s,i)=>(s+corr[i])/3600),ill=adj.map(a=>a<BR_LIM.wcMin||a>BR_LIM.wcMax);
+  return{t,ang,ready:true,obs:sec.map(s=>s/3600),err,corr,adj,ill,lim,bad:Math.abs(err)>lim+1e-6}}
 // sides by sine rule. Side opposite vertex i = k·sin(A_i). Axis: one value from each base triangle using only measured base lines.
 function brSolve(){const tc=BR.tris.map(triCalc),meas={};
   for(const b of BR.bases){const c=baseCalc(b);if(c&&b.a&&b.b)meas[pairKey(b.a,b.b)]=c.mean}
@@ -82,7 +83,8 @@ function brIssues(sol){sol=sol||brSolve();const o=[];
   BR.bases.forEach(b=>{const c=baseCalc(b);if(c&&c.bad)o.push(`Base ${b.a}${b.b}: 1:${Math.round(c.prec)} (needs 1:${c.lim})`)});
   BR.obs.forEach(x=>{const c=obsCalc(x),n=`∠${x.bs}${x.at}${x.fs}`;c.s.forEach((s,i)=>{if(s&&s.faceBad)o.push(`${n} set ${i+1}: face difference ${sTxt(s.fd)} (limit ${BR_LIM.face}″)`)});
     if(c.setBad)o.push(`${n}: sets differ by ${sTxt(c.sd)} (limit 1′)`)});
-  sol.tc.forEach(T=>{if(T.ready&&T.bad)o.push(`△${T.t.p.join("")}: misclosure ${sTxt(T.err)} (limit ±${Math.round(T.lim)}″)`)});
+  sol.tc.forEach(T=>{if(T.ready&&T.bad)o.push(`△${T.t.p.join("")}: misclosure ${sTxt(T.err)} (limit ±${Math.round(T.lim)}″)`);
+    if(T.ready&&T.ill.some(x=>x))o.push(`△${T.t.p.join("")} is not well-conditioned: ${T.t.p.filter((v,j)=>T.ill[j]).map((v,j)=>v).join(", ")} outside ${BR_LIM.wcMin}°–${BR_LIM.wcMax}° (move a station)`)});
   if(sol.axBad)o.push(`Axis ${BR.axis.join("")}: two values agree to 1:${Math.round(sol.axPrec)} only (needs 1:${BR_LIM.axis})`);
   const r=recCalc(sol);if(r.bad)o.push(`Reciprocal levelling: error ${r.err.toFixed(1)} mm > ±${r.perm.toFixed(1)} mm`);
   [["s1","a"],["s1","b"],["s2","a"],["s2","b"]].forEach(([s,k])=>{const w=brWire(BR.rec[s][k]);if(w&&w.bad)o.push(`Reciprocal set ${s[1]}, staff on ${k==="a"?BR.axis[0]:BR.axis[1]}: |(T+B)/2 − M| > 3 mm`)});
@@ -113,12 +115,12 @@ function renderBR(h){
   const D=jobTxt("det"),LS=jobTxt("ls"),XS=jobTxt("xs"),sec=t=>`<p class="note" style="margin:16px 4px 8px;font-weight:800;text-transform:uppercase;letter-spacing:1px">${t}</p>`;
   app.innerHTML=`<div id="bbanner"></div>
   <div class="hubhead"><h3>Bridge site</h3><p>Axis ${esc(BR.axis.join(""))} crosses the river. Tap a task.</p></div>
-  ${BR_LAYOUT.obs.every(([at,bs,fs])=>findObs(at,bs,fs))?"":`<div class="card"><h2>Start here</h2><p class="note" style="margin:0">Adds our layout: base lines AC and BD, base triangles ABC and ABD (2 sets), extra triangles ADE, DEF, EFG (1 set) and all 15 angles in reading order.</p><div class="btns" style="margin-top:10px"><button class="btn pri" onclick="brSetup()">Set up our layout</button></div></div>`}
+  ${BR_LAYOUT.obs.every(([at,bs,fs])=>findObs(at,bs,fs))?"":`<div class="card"><h2>Start here</h2><p class="note" style="margin:0">Adds our layout: base lines AC and BD, major triangles ABC and ABD (solid, 2 sets), minor triangles ADE, DEF, EFG (dotted, 1 set) and all 15 angles in reading order.</p><div class="btns" style="margin-top:10px"><button class="btn pri" onclick="brSetup()">Set up our layout</button></div></div>`}
   ${sec("Control")}
   ${step(1,"bfly","Fly levelling BM → "+esc(BR.axis[0]),fl.length?`${fl.length} line${fl.length>1?"s":""} · ${fl.filter(x=>x===true).length} closed OK`:"3-wire · there and back · ±24√K",fl.some(x=>x===false)?"bad":fl.some(x=>x)?"ok":"")}
   ${step(2,"br/base","Base lines",`${nb} measured · tape 1:2000 · EDM 1:5000`,BR.bases.some(b=>{const c=baseCalc(b);return c&&c.bad})?"bad":nb?"ok":"")}
   ${step(3,"br/ang","Angles",`${na} / ${BR.obs.length} done · base 2 sets, others 1 set`,BR.obs.some(o=>{const c=obsCalc(o);return c.setBad||c.s.some(s=>s&&s.faceBad)})?"bad":na&&na===BR.obs.length?"ok":"")}
-  ${step(4,"br/tri","Triangles · axis length",sol.axMean!=null?`${esc(BR.axis.join(""))} = ${sol.axMean.toFixed(3)} m${sol.axPrec!=null?" · 1:"+(sol.axPrec===Infinity?"∞":Math.round(sol.axPrec)):""}`:`${nt} / ${BR.tris.length} triangles closed`,sol.tc.some(T=>T.ready&&T.bad)||sol.axBad?"bad":sol.axPrec!=null?"ok":"")}
+  ${step(4,"br/tri","Triangles · axis length",sol.axMean!=null?`${esc(BR.axis.join(""))} = ${sol.axMean.toFixed(3)} m${sol.axPrec!=null?" · 1:"+(sol.axPrec===Infinity?"∞":Math.round(sol.axPrec)):""}`:`${nt} / ${BR.tris.length} triangles closed`,sol.tc.some(T=>T.ready&&(T.bad||T.ill.some(x=>x)))||sol.axBad?"bad":sol.axPrec!=null?"ok":"")}
   ${step(5,"br/rec","Reciprocal levelling",rc.err!=null?`error ${rc.err.toFixed(1)} mm · ±${rc.perm!=null?rc.perm.toFixed(1):"?"} mm${rc.rlB!=null?" · RL "+esc(BR.axis[1])+" "+rc.rlB.toFixed(3):""}`:"across the river · 2 sets",rc.bad?"bad":rc.err!=null&&rc.perm!=null?"ok":"")}
   ${sec("Mapping (total station)")}
   ${step(6,"br/det","Detailing",D.t+" · 200 m × 120 m",D.s)}
@@ -140,8 +142,9 @@ function renderBRSet(){backTo="br";homeBtn.textContent="◀ Bridge";
     <div class="row"><span>Base line</span><b>tape 1:2000 · EDM 1:5000</b></div>
     <div class="row"><span>Face difference</span><b>≤ ${BR_LIM.face}″</b></div>
     <div class="row"><span>Set I vs Set II</span><b>≤ 1′</b></div>
-    <div class="row"><span>Base triangle misclosure</span><b>±30″√3 = ±52″</b></div>
-    <div class="row"><span>Other triangles</span><b>±1′√3 = ±104″</b></div>
+    <div class="row"><span>Major triangles (solid: ABC, ABD)</span><b>2 sets · ±30″√3 = ±52″</b></div>
+    <div class="row"><span>Minor triangles (dotted: ADE, DEF, EFG)</span><b>1 set · ±1′√3 = ±104″</b></div>
+    <div class="row"><span>Well-conditioned (every angle)</span><b>30° – 120°</b></div>
     <div class="row"><span>Axis from two base triangles</span><b>≥ 1:2000</b></div>
     <div class="row"><span>Fly / reciprocal levelling</span><b>±24√K mm</b></div>
     <div class="row"><span>Detailing backsight check</span><b>≤ ${CT_TOL*1000} mm</b></div>
@@ -194,20 +197,20 @@ function brDel(col,i){const x=BR[col][i],nm=col==="obs"?`angle ∠${x.bs}${x.at}
 const FACES=[["lb","FL","BS"],["lf","FL","FS"],["rb","FR","BS"],["rf","FR","FS"]];
 function dmsBox(oi,si,k,v){v=v||["","",""];return `<div class="dms"><input class="d" inputmode="numeric" data-o="${oi}" data-s="${si}" data-k="${k}" data-j="0" value="${esc(v[0])}" placeholder="°"><i>°</i><input inputmode="numeric" data-o="${oi}" data-s="${si}" data-k="${k}" data-j="1" value="${esc(v[1])}" placeholder="′"><i>′</i><input inputmode="numeric" data-o="${oi}" data-s="${si}" data-k="${k}" data-j="2" value="${esc(v[2])}" placeholder="″"><i>″</i></div>`}
 function renderBRAng(){backTo="br";homeBtn.textContent="◀ Bridge";
-  title.innerHTML="Angles<small>HCR · FL then FR · base triangles 2 sets</small>";
+  title.innerHTML="Angles<small>HCR · FL then FR · major 2 sets · minor 1 set</small>";
   const ats=[...new Set(BR.obs.map(o=>o.at))];
   const card=(o,i)=>{const c=obsCalc(o);const sets=o.base?[0,1]:[0];
     return `<div class="card" id="bo${i}"><div class="row" style="border:0;padding-top:0"><span><b>∠</b><input class="pt" style="width:44px" data-oi="${i}" data-k="bs" value="${esc(o.bs)}"><b>${esc(o.at)}</b><input class="pt" style="width:44px" data-oi="${i}" data-k="fs" value="${esc(o.fs)}"><br><small class="note">At ${esc(o.at)}: from ${esc(o.bs||"?")} (BS) clockwise to ${esc(o.fs||"?")} (FS)</small></span><span id="boc${i}"></span></div>
       ${sets.map(si=>`<p class="bookh" style="margin:10px 0 2px">Set ${si===0?"I":"II"} ${si===1?'<small class="note">(start near 90°)</small>':'<small class="note">(start near 0°)</small>'}</p>
       ${FACES.map(([k,f,t])=>`<div class="obs"><label><b>${f}</b> ${t} ${esc(t==="BS"?o.bs:o.fs)}</label>${dmsBox(i,si,k,(o.sets[si]||{})[k])}</div>`).join("")}<div id="bos${i}_${si}"></div>`).join("")}
-      <div class="row"><span>Base triangle angle (2 sets)</span><input type="checkbox" ${o.base?"checked":""} onchange="brBase(${i},this.checked)" style="width:22px;height:22px"></div>
+      <div class="row"><span>Major triangle angle (2 sets)</span><input type="checkbox" ${o.base?"checked":""} onchange="brBase(${i},this.checked)" style="width:22px;height:22px"></div>
       <div class="btns" style="margin-top:6px"><button class="btn" onclick="brDel('obs',${i})">Delete</button></div></div>`};
   app.innerHTML=`<div id="bbanner"></div>
   ${ats.map(a=>`<p class="bookh" style="margin:4px 4px 8px">At ${esc(a)}</p>`+BR.obs.map((o,i)=>o.at===a?card(o,i):"").join("")).join("")||'<div class="card"><p class="note">No angles yet. Go back and tap “Set up the usual layout”, or add one below.</p></div>'}
   <div class="card"><h2>Add an angle</h2>
     <div class="row"><span>At station</span><input class="cfgin" id="nat" autocapitalize="characters" placeholder="E"></div>
     <div class="row"><span>From (BS) → to (FS)</span><span><input class="pt" style="width:50px" id="nbs"> → <input class="pt" style="width:50px" id="nfs"></span></div>
-    <div class="row"><span>Base triangle (2 sets)</span><input type="checkbox" id="nbase" style="width:22px;height:22px"></div>
+    <div class="row"><span>Major triangle (2 sets)</span><input type="checkbox" id="nbase" style="width:22px;height:22px"></div>
     <div class="btns" style="margin-top:8px"><button class="btn pri" onclick="brAddObs()">+ Add angle</button></div>
     <p class="note">Several angles at one station: the FS of one angle is the BS of the next, type the same reading again. Each angle is read clockwise from BS to FS.</p></div>`;
   app.querySelectorAll("[data-o]").forEach(el=>{el.addEventListener("input",()=>{el.value=el.value.replace(/[^\d.]/g,"");const o=BR.obs[+el.dataset.o],s=+el.dataset.s;
@@ -231,11 +234,11 @@ function renderBRTri(){backTo="br";homeBtn.textContent="◀ Bridge";
   const sol=brSolve(),X=brCoords(sol);
   const tcard=(T,i)=>{const p=T.t.p;let body;
     if(!T.ready)body=`<p class="note">Waiting for the angle${T.missing.length>1?"s":""} at ${T.missing.map(esc).join(", ")}. ${T.ang.some(a=>!a)?"Add it on the Angles page (the two other corners as BS and FS).":""}</p>`;
-    else body=`<table><tr><th>Angle</th><th>Observed</th><th>Corr.</th><th>Corrected</th></tr>${p.map((v,j)=>`<tr><td>${esc(v)}</td><td>${bDms(T.obs[j])}</td><td>${sTxt(T.corr[j])}</td><td><b>${bDms(T.adj[j])}</b></td></tr>`).join("")}
+    else body=`<table><tr><th>Angle</th><th>Observed</th><th>Corr.</th><th>Corrected</th></tr>${p.map((v,j)=>`<tr><td>${esc(v)}</td><td>${bDms(T.obs[j])}</td><td>${sTxt(T.corr[j])}</td><td><b>${bDms(T.adj[j])}</b>${T.ill[j]?" "+pill("bad","<"+BR_LIM.wcMin+"° or >"+BR_LIM.wcMax+"°"):""}</td></tr>`).join("")}
       <tr><td>Sum</td><td>${bDms(T.obs.reduce((a,b)=>a+b,0))}</td><td></td><td>180° 00′ 00″</td></tr></table>
       <div class="row"><span>Misclosure (limit ±${Math.round(T.lim)}″)</span>${pill(T.bad?"bad":"ok",sTxt(T.err))}</div>
       ${p.map((v,j)=>{const k=pairKey(p[(j+1)%3],p[(j+2)%3]),L=sol.sides[k];return `<div class="row"><span>${esc(p[(j+1)%3]+p[(j+2)%3])} <small class="note">(${sol.src[k]||"unknown"})</small></span><b>${L!=null?L.toFixed(3)+" m":"–"}</b></div>`}).join("")}`;
-    return `<div class="card"><div class="row" style="border:0;padding-top:0"><span><b>△${esc(p.join(""))}</b> <small class="note">${T.t.base?"base triangle":"extra triangle"}</small></span><button class="btn" style="flex:none;padding:8px 12px" onclick="brDel('tris',${i})">Delete</button></div>${body}</div>`};
+    return `<div class="card"><div class="row" style="border:0;padding-top:0"><span><b>△${esc(p.join(""))}</b> <small class="note">${T.t.base?"major (solid) · 2 sets · ±30″√3":"minor (dotted) · 1 set · ±1′√3"}</small></span><button class="btn" style="flex:none;padding:8px 12px" onclick="brDel('tris',${i})">Delete</button></div>${body}</div>`};
   const st=Object.keys(X);
   app.innerHTML=`<div id="bbanner"></div>
   <div class="card"><h2>Bridge axis ${esc(BR.axis.join(""))}</h2>
@@ -245,7 +248,7 @@ function renderBRTri(){backTo="br";homeBtn.textContent="◀ Bridge";
   ${sol.tc.map(tcard).join("")}
   <div class="card"><h2>Add a triangle</h2>
     <div class="row"><span>Corners</span><span><input class="pt" style="width:44px" id="t0"> <input class="pt" style="width:44px" id="t1"> <input class="pt" style="width:44px" id="t2"></span></div>
-    <div class="row"><span>Base triangle (±30″√N)</span><input type="checkbox" id="tbase" style="width:22px;height:22px"></div>
+    <div class="row"><span>Major triangle (2 sets, ±30″√N)</span><input type="checkbox" id="tbase" style="width:22px;height:22px"></div>
     <div class="btns" style="margin-top:8px"><button class="btn pri" onclick="brAddTri()">+ Add triangle</button></div></div>
   <div class="card"><h2>Station coordinates</h2>
     <div class="row"><span>${esc(BR.axis[0])} Northing</span><input class="cfgin" inputmode="decimal" data-st="N" value="${esc(BR.start.N)}" placeholder="1000.000"></div>
