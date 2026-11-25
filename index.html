@@ -116,6 +116,40 @@ body.sysfont{font-family:system-ui,Roboto,"Segoe UI",sans-serif}
 .gstep b{font-weight:800}.glist{margin:0;padding-left:20px;font-size:15px}.glist li{margin:6px 0}
 .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 2px}.chips small{opacity:.7;margin-right:2px}.chips button{font:inherit;font-size:14px;padding:6px 12px;border-radius:999px;border:1px solid var(--line,#ccc);background:var(--card,#fff);color:inherit}
 #app .pill.bad{color:#fff}.nez{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:6px 0}.nez label{font-size:12px;color:var(--mut);font-weight:800}.nez input{display:block;width:100%;margin-top:2px;font:inherit;font-size:14px;font-weight:700;padding:9px 4px;letter-spacing:-.2px;border:1.5px solid var(--line);border-radius:10px;background:var(--input);color:var(--ink);text-align:right;min-width:0}
+
+/* ===== print book (print.js) ===== */
+#printroot{display:none}
+.pb{color:#0b1f4d;font-family:"Times New Roman",Times,"Noto Serif","Liberation Serif",serif}
+.pb .pg{background:#fff;color:#0b1f4d;box-sizing:border-box;display:flex;flex-direction:column;break-after:page;page-break-after:always}
+.pb .pg:last-child{break-after:auto;page-break-after:auto}
+.pb .ptop{display:flex;justify-content:space-between;align-items:flex-start}
+.pb .pgrp{border:1.2px solid #0b1f4d;padding:4px 10px;width:52mm;font-size:13pt;font-weight:bold}
+.pb .puni{text-align:center;font-size:9.5pt;line-height:1.2}.pb .pdept{font-size:14pt;font-weight:bold}
+.pb .prt{width:52mm;display:flex;justify-content:flex-end}.pb .pfmt{border:3.5px double #0b1f4d;border-radius:50%;padding:2px 14px;font-size:11pt;font-weight:bold}
+.pb .pmeta{display:flex;justify-content:space-between;align-items:center;font-size:10.5pt;line-height:1.45;margin:1mm 0 2mm}.pb .pmeta>div:first-child,.pb .pmeta>div:last-child{width:62mm}
+.pb .pttl{text-align:center;font-size:14pt;font-weight:bold}.pb .pttl span{font-size:11pt;font-weight:normal}
+.pb .pbody{flex:1}
+.pb table.bk{width:auto;margin:0 auto;border-collapse:collapse;font-size:12pt}
+.pb .bk th,.pb .bk td{border:0.8px solid #0b1f4d;text-align:center;padding:2px 7px;height:7mm;color:#0b1f4d;font-weight:normal;text-transform:none;letter-spacing:0;background:none;white-space:nowrap}
+.pb .bk th{font-size:11pt;line-height:1.15;font-weight:bold}
+.pb .bk td.l{text-align:left}.pb .bk td.st,.pb .bk td.b,.pb .bk tr.b td{font-weight:bold}
+.pb .hcr td,.pb .hcr th{padding:1px 5px}.pb .hcr td{height:7.2mm}.pb .hcr.one td{height:5.7mm;padding:0 5px}
+.pb .ac td{height:6mm}
+.pb .lev td{height:6.4mm;padding:1px 4px}.pb .fly{font-size:11.5pt}.pb .fly th{font-size:10.5pt}.pb .bk td.sh{background:#0b1f4d}
+.pb .gales{font-size:10pt}.pb .gales th{font-size:9.5pt}.pb .gales td,.pb .gales th{padding:1px 3px;height:6mm}
+.pb .bk.sm{font-size:11pt;margin:0}.pb .bk.sm td{height:6mm}
+.pb .ptwo{display:flex;gap:8mm;justify-content:center;align-items:flex-start;margin-top:4mm}
+.pb .pnote{font-size:11pt;text-align:center;margin:3mm 0 0;color:#0b1f4d}
+.pb .psub{font-weight:bold;font-size:12pt;text-align:center;margin:4mm 0 1.5mm}
+.pb .pdraw svg{width:100%;height:118mm;display:block}
+.pb .pfoot{display:flex;justify-content:space-between;font-size:9.5pt;margin-top:3mm}
+.pb .cover h1{text-align:center;font-size:26pt;margin:12mm 0 2mm}.pb .csub{text-align:center;font-size:15pt;margin:0 0 7mm}.pb .ctoc{min-width:150mm}.pb .credit{text-align:center;font-size:10pt;margin-top:8mm;font-style:italic}
+.prv{overflow:hidden}.prv .pg{zoom:var(--z,.33);width:297mm;min-height:210mm;padding:8mm 9mm;margin:0 auto 16px;box-shadow:0 2px 14px rgba(0,0,0,.3)}
+.pchk{display:flex;gap:10px;align-items:center;padding:8px 0;font-weight:700;font-size:16px}.pchk input{width:22px;height:22px}
+.pfs{display:grid;grid-template-columns:1fr 1fr;gap:8px}.pf span{display:block;font-size:12px;color:var(--mut);font-weight:800}.pf input{width:100%;font:inherit;font-size:15px;padding:8px;border:1.5px solid var(--line);border-radius:10px;background:var(--input);color:var(--ink)}
+@media print{@page{size:A4 landscape;margin:8mm 9mm}
+  html,body{background:#fff!important}body>*:not(#printroot){display:none!important}#printroot{display:block!important}
+  .pb .pg{min-height:191mm}}
 </style>
 </head>
 <body>
@@ -131,6 +165,7 @@ window.addEventListener("error",function(ev){try{var a=document.getElementById("
 <script src="lev.js"></script>
 <script src="ct.js"></script>
 <script src="br.js"></script>
+<script src="print.js"></script>
 <script>
 "use strict";
 /* ===== Traverse profiles: major (closed loop, 2 sets) and minor (link or loop, 1 set) ===== */
@@ -233,6 +268,7 @@ function route(){const h=decodeURIComponent(location.hash.slice(1));lastStatus=n
   for(const lk of["lev","fly","mlev","bfly"])if(h===lk||h.startsWith(lk+"/")){useLev(lk);guideTo=lk+"/guide";renderLev(h);window.scrollTo(0,0);return}
   if(h==="ct"||h.startsWith("ct/")){renderCT(h);window.scrollTo(0,0);return}
   if(h==="br"||h.startsWith("br/")){renderBR(h);window.scrollTo(0,0);return}
+  if(h==="print"||h.startsWith("print/")){renderPrint(h);window.scrollTo(0,0);return}
   if(h===""){renderHub();window.scrollTo(0,0);return}
   let k="major",rest=h;if(h==="minor"||h.startsWith("minor/")){k="minor";rest=h==="minor"?"":h.slice(6)}else if(h==="trav")rest="";
   useTrav(k);cur=ST.includes(rest)?rest:null;guideTo=PROF.pre+"guide";
@@ -399,6 +435,7 @@ function renderHub(){
   ${work("minor","◇","Minor Traverse",MI.ok?tsub(MI):"Set up first · one set · 1:3000 · ±1′√n",MI.tb?"bad":MI.ok&&MI.S.done.length===MI.N?"ok":"",MI.ok?Math.round(100*MI.S.done.length/MI.N):null)}
   ${work("ct","⊕","Coordinate Transfer",`${CT.setups.length} setup${CT.setups.length===1?"":"s"} · ${CT.setups.reduce((n,S)=>n+S.pts.length,0)} points${(()=>{const w=CT.setups.reduce((n,S)=>n+ctIssues(S).length,0);return w?" · "+w+" warning"+(w>1?"s":""):""})()}`,CT.setups.some(S=>ctIssues(S).length)?"bad":"",null)}
   ${(()=>{const sol=brSolve(),w=brIssues(sol).length;return work("br","⌒","Bridge Site Survey",sol.axMean!=null?`Axis ${esc(BR.axis.join(""))} = ${sol.axMean.toFixed(3)} m${w?" · "+w+" warning"+(w>1?"s":""):""}`:`Triangulation · reciprocal levelling · hydrology${w?" · "+w+" warning"+(w>1?"s":""):""}`,w?"bad":"",null)})()}
+  ${work("print","⎙","Print field book","Every recorded job as book sheets · Save as PDF","",null)}
   <p class="note" style="margin:14px 4px 8px">Coming next (per camp schedule)</p>
   ${work("","▦","Detailing","Total station / tacheometry · Day 4–5","soon",null)}
   ${work("","⟿","Road Alignment","Curves · L-section · X-section · Day 8–9","soon",null)}
@@ -412,7 +449,8 @@ function renderHub(){
     <p class="note">One backup holds every job. Last saved: ${esc((localStorage.getItem(TS_KEY)||"never").replace("T"," ").slice(0,19))} UTC. Merge only fills empty boxes, never overwrites.</p>
     <div class="btns" style="margin-top:10px"><button class="btn" onclick="wipe()">Clear ALL jobs…</button></div></div>
   <div class="card"><h2>Font</h2>
-    <div class="seg"><button class="${sysFont()?"":"on"}" onclick="setFont(false)">App (Inter)</button><button class="${sysFont()?"on":""}" style="font-family:system-ui,Roboto,sans-serif" onclick="setFont(true)">System</button></div></div>`;
+    <div class="seg"><button class="${sysFont()?"":"on"}" onclick="setFont(false)">App (Inter)</button><button class="${sysFont()?"on":""}" style="font-family:system-ui,Roboto,sans-serif" onclick="setFont(true)">System</button></div></div>
+  <p class="note" style="text-align:center;margin:4px 0 10px">App by Gaurab KC · co-authored with Claude (Anthropic)</p>`;
 }
 function renderHome(){
   title.innerHTML=`${PROF.name}<small>${PK==="major"&&CFG.group?"Group "+esc(CFG.group)+" · ":""}${PROF.ready&&PROF.configured?routeTxt():"not set up yet"}</small>`;homeBtn.classList.remove("hidden");
