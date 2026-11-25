@@ -113,7 +113,7 @@ function renderBR(h){
   const D=jobTxt("det"),LS=jobTxt("ls"),XS=jobTxt("xs"),sec=t=>`<p class="note" style="margin:16px 4px 8px;font-weight:800;text-transform:uppercase;letter-spacing:1px">${t}</p>`;
   app.innerHTML=`<div id="bbanner"></div>
   <div class="hubhead"><h3>Bridge site</h3><p>Axis ${esc(BR.axis.join(""))} crosses the river. Tap a task.</p></div>
-  ${BR.obs.length?"":`<div class="card"><h2>Start here</h2><p class="note" style="margin:0">Adds base lines AC, AD, triangles ABC, ABD and the six angles in the template's order.</p><div class="btns" style="margin-top:10px"><button class="btn pri" onclick="brSetup()">Set up the usual layout</button></div></div>`}
+  ${BR_LAYOUT.obs.every(([at,bs,fs])=>findObs(at,bs,fs))?"":`<div class="card"><h2>Start here</h2><p class="note" style="margin:0">Adds our layout: base lines AC and BD, base triangles ABC and ABD (2 sets), extra triangles ADE, DEF, EFG (1 set) and all 15 angles in reading order.</p><div class="btns" style="margin-top:10px"><button class="btn pri" onclick="brSetup()">Set up our layout</button></div></div>`}
   ${sec("Control")}
   ${step(1,"bfly","Fly levelling BM → "+esc(BR.axis[0]),fl.length?`${fl.length} line${fl.length>1?"s":""} · ${fl.filter(x=>x===true).length} closed OK`:"3-wire · there and back · ±24√K",fl.some(x=>x===false)?"bad":fl.some(x=>x)?"ok":"")}
   ${step(2,"br/base","Base lines",`${nb} measured · tape 1:2000 · EDM 1:5000`,BR.bases.some(b=>{const c=baseCalc(b);return c&&c.bad})?"bad":nb?"ok":"")}
@@ -135,7 +135,7 @@ function renderBRSet(){backTo="br";homeBtn.textContent="◀ Bridge";
   app.innerHTML=`<div class="card"><h2>Bridge axis</h2>
     <div class="row"><span>Axis ends (this bank → far bank)</span><span style="white-space:nowrap"><input class="pt" style="width:52px" id="ax0" value="${esc(BR.axis[0])}" autocapitalize="characters"> → <input class="pt" style="width:52px" id="ax1" value="${esc(BR.axis[1])}" autocapitalize="characters"></span></div>
     <p class="note">Same letters as the template: A and B on the axis, C and D for the base triangles ABC and ABD, E, F, G… for extra triangles.</p>
-    <div class="btns" style="margin-top:8px"><button class="btn" onclick="brSetup()">Set up the usual layout (ABC, ABD)</button></div></div>
+    <div class="btns" style="margin-top:8px"><button class="btn" onclick="brSetup()">Set up our layout (ABC, ABD, ADE, DEF, EFG)</button></div></div>
   <div class="card"><h2>Limits</h2>
     <div class="row"><span>Base line</span><b>tape 1:2000 · EDM 1:5000</b></div>
     <div class="row"><span>Face difference</span><b>≤ ${BR_LIM.face}″</b></div>
@@ -151,13 +151,23 @@ function renderBRSet(){backTo="br";homeBtn.textContent="◀ Bridge";
     <div class="btns" style="margin-top:10px"><button class="btn" onclick="brClear()">Clear bridge data…</button></div></div>`;
   for(const i of[0,1]){const el=document.getElementById("ax"+i);el.addEventListener("change",()=>{BR.axis[i]=el.value.trim().toUpperCase()||(i?"B":"A");brSave();renderBRSet()})}
 }
-function brSetup(){if((BR.obs.length||BR.tris.length||BR.bases.length)&&!confirm("Add the usual layout? Existing entries are kept; missing ones are added."))return;
-  const [A,B]=BR.axis,C="C",D="D";
-  const addB=(a,b)=>{if(!BR.bases.some(x=>pairKey(x.a,x.b)===pairKey(a,b)))BR.bases.push({id:newId(),a,b,fw:"",bw:"",mode:"edm"})};addB(A,C);addB(A,D);
-  const addT=(p)=>{if(!BR.tris.some(t=>t.p.slice().sort().join()===p.slice().sort().join()))BR.tris.push({id:newId(),p,base:true})};addT([A,B,C]);addT([A,B,D]);
-  // reading order as in the template: at A: C→B, B→D; at B: D→A, A→C; at C: B→A; at D: A→B
-  const addO=(at,bs,fs)=>{if(!findObs(at,bs,fs))BR.obs.push({id:newId(),at,bs,fs,base:true,sets:[{},{}]})};
-  addO(A,C,B);addO(A,B,D);addO(B,D,A);addO(B,A,C);addO(C,B,A);addO(D,A,B);brSave();route()}
+// Group 07 layout (field sketch 2026-11-25): river flows from G/F side towards C. A, C, E, G on one bank; B, D, F on the other.
+// Base lines AC (A's bank) and BD (B's bank). Base triangles ABC, ABD (2 sets). Extra triangles ADE, DEF, EFG (1 set).
+// Angles read clockwise from BS to FS, in the order met at each station.
+const BR_LAYOUT={bases:[["A","C"],["B","D"]],tris:[[["A","B","C"],1],[["A","B","D"],1],[["A","D","E"],0],[["D","E","F"],0],[["E","F","G"],0]],
+  obs:[["A","C","B",1],["A","B","D",1],["A","D","E",0],["B","D","A",1],["B","A","C",1],["C","B","A",1],["D","A","B",1],["D","F","E",0],["D","E","A",0],
+       ["E","A","D",0],["E","D","F",0],["E","F","G",0],["F","G","E",0],["F","E","D",0],["G","E","F",0]]};
+const obsEmpty=o=>!o.sets.some(s=>s&&Object.values(s).some(v=>bDeg(v)!=null));
+function brSetup(){const L=BR_LAYOUT;BR.axis=["A","B"];
+  const inB=b=>L.bases.some(([a,c])=>pairKey(a,c)===pairKey(b.a,b.b)),inT=t=>L.tris.some(([p])=>p.slice().sort().join()===t.p.slice().sort().join()),inO=o=>L.obs.some(([at,bs,fs])=>o.at===at&&((o.bs===bs&&o.fs===fs)||(o.bs===fs&&o.fs===bs)));
+  const extra=[...BR.bases.filter(b=>!inB(b)&&baseCalc(b)),...BR.obs.filter(o=>!inO(o)&&!obsEmpty(o))];
+  if(BR.obs.length&&!confirm("Switch to our layout (base lines AC, BD; triangles ABC, ABD, ADE, DEF, EFG)? Readings already typed are kept; empty entries that are not in this layout are removed."))return;
+  BR.bases=BR.bases.filter(b=>inB(b)||baseCalc(b));BR.tris=BR.tris.filter(inT);BR.obs=BR.obs.filter(o=>inO(o)||!obsEmpty(o));
+  for(const [a,b] of L.bases)if(!BR.bases.some(x=>pairKey(x.a,x.b)===pairKey(a,b)))BR.bases.push({id:newId(),a,b,fw:"",bw:"",mode:"edm"});
+  for(const [p,base] of L.tris)if(!BR.tris.some(t=>t.p.slice().sort().join()===p.slice().sort().join()))BR.tris.push({id:newId(),p,base:!!base});else BR.tris.find(t=>t.p.slice().sort().join()===p.slice().sort().join()).base=!!base;
+  for(const [at,bs,fs,base] of L.obs){const o=findObs(at,bs,fs);if(!o)BR.obs.push({id:newId(),at,bs,fs,base:!!base,sets:base?[{},{}]:[{}]});else if(base&&!o.base){o.base=true;if(o.sets.length<2)o.sets.push({})}}
+  const ord=L.obs.map(([at,bs,fs])=>at+bs+fs);BR.obs.sort((x,y)=>{const i=ord.indexOf(x.at+x.bs+x.fs),j=ord.indexOf(y.at+y.bs+y.fs),k=ord.indexOf(x.at+x.fs+x.bs),l=ord.indexOf(y.at+y.fs+y.bs);return (i<0?k<0?99:k:i)-(j<0?l<0?99:l:j)});
+  brSave();if(extra.length)alert(`Kept because they have readings: ${extra.map(x=>x.at?`∠${x.bs}${x.at}${x.fs}`:`base ${x.a}${x.b}`).join(", ")}. Delete them yourself if not needed.`);route()}
 
 /* base lines */
 function renderBRBase(){backTo="br";homeBtn.textContent="◀ Bridge";
@@ -345,17 +355,17 @@ function brExport(){const csv=r=>r.map(v=>v==null?"":/[",\n]/.test(v)?`"${String
 function renderBRGuide(){backTo="br";homeBtn.textContent="◀ Bridge";guideBtn.classList.add("hidden");
   title.innerHTML="Bridge site: what to do<small>In this order</small>";
   const s=(n,h,b)=>`<div class="gstep"><div class="gn">${n}</div><div><b>${h}</b><div>${b}</div></div></div>`;
-  app.innerHTML=`<div class="card"><h2>Layout</h2><pre style="font-size:13px;line-height:1.25;margin:0;overflow-x:auto">        B   far bank
-       / \\
-  ~~~~/~~~\\~~~~  river
-     /     \\
-    C---A---D   your bank</pre>
-    <p class="note">A and B are the bridge axis ends. AC and AD are base lines measured on land. Triangles ABC and ABD each give the axis length AB by the sine rule; the two must agree to 1:2000.</p></div>
+  app.innerHTML=`<div class="card"><h2>Layout</h2><pre style="font-size:13px;line-height:1.25;margin:0;overflow-x:auto">      B--------D--------F
+     /|       /\\       / \\
+ d/s / |  ←  /  \\ u/s /   \\
+    /  |    /    \\   /     \\
+   C---A---/------E---------G</pre>
+    <p class="note">River flows right to left. A–B is the bridge axis. Base lines: AC (A's bank) and BD (B's bank). Triangles ABC and ABD each give AB by the sine rule; the two must agree to 1:2000. ADE, DEF, EFG carry control upstream for the L-section.</p></div>
   <div class="card"><h2>Steps</h2>
-    ${s(1,"Recce","Straight, narrow reach, firm banks, axis square to the flow, 4 m free board above HFL. Peg A, B, C, D; angles in the triangles between 30° and 120°.")}
+    ${s(1,"Recce","Straight, narrow reach, firm banks, axis square to the flow, 4 m free board above HFL. Peg A to G as in our sketch; angles in the triangles between 30° and 120°.")}
     ${s(2,"Two peg test + fly levelling","BM → A and back (3-wire). Step 1 on the bridge menu.")}
-    ${s(3,"Base lines","AC and AD forward and back. EDM 1:5000, tape 1:2000.")}
-    ${s(4,"Angles","At A, B, C, D: 2 sets (Set I from 0°, Set II from 90°), FL then FR. Sets within 1′, faces within 20″. Someone must cross to B.")}
+    ${s(3,"Base lines","AC and BD forward and back. EDM 1:5000, tape 1:2000.")}
+    ${s(4,"Angles","Angles of ABC and ABD (at A, B, C, D): 2 sets, Set I from 0°, Set II from 90°, FL then FR; sets within 1′, faces within 20″. Angles of ADE, DEF, EFG: 1 set. At each station read clockwise in the order listed in the app.")}
     ${s(5,"Triangles","The app spreads the misclosure (base ±30″√3, others ±1′√3) and gives AB from each triangle.")}
     ${s(6,"Reciprocal levelling","Level near A: read A then B. Level near B: read B then A. True difference = mean of the two. Error within 24√K, K = 2 × AB.")}
     ${s(7,"Coordinates","Assume A (or use given values) and a bearing for AB; the app computes B, C, D. Tap “Use for detailing”, then use Detailing, L-section and X-sections on the bridge menu.")}
