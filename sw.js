@@ -1,4 +1,4 @@
-const C="trav-v42",F=["./","index.html","manifest.json","icon.svg","inter.woff2","lev.js","ct.js","br.js","print.js"];
+const C="trav-v43",F=["./","index.html","manifest.json","icon.svg","inter.woff2","lev.js","ct.js","br.js","print.js"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(F.map(u=>new Request(u,{cache:"reload"})))));self.skipWaiting()});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))));self.clients.claim()});
 // network first (always a matching set of files when online), cache when offline

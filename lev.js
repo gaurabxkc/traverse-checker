@@ -93,8 +93,10 @@ function levIssues(L){const c=lineCalc(L),o=[];
   return o}
 function pegCalc(){const P=LEV.peg,a1=w3(P.mid.a),b1=w3(P.mid.b),a2=w3(P.near.a),b2=w3(P.near.b),d=num(P.d);
   const h1=a1&&b1?r3(a1.mean-b1.mean):null,h2=a2&&b2?r3(a2.mean-b2.mean):null;
-  const e=h1!=null&&h2!=null?Math.abs(h1-h2):null,prec=e!=null&&d?(e<0.0005?Infinity:d/e):null;
-  return{a1,b1,a2,b2,h1,h2,e,d,prec,ok:prec==null?null:prec>=LIM_LEV.peg}}
+  // near setup: instrument n m from the near peg, inside the pegs (sights n and D−n, difference D−2n) or outside (n and D+n, difference D)
+  const n=num(P.n),out=P.pos==="out",Ld=d?(n!=null?(out?d:d-2*n):d):null;
+  const e=h1!=null&&h2!=null?Math.abs(h1-h2):null,prec=e!=null&&Ld?(e<0.0005?Infinity:Ld/e):null;
+  return{a1,b1,a2,b2,h1,h2,e,d,n,out,Ld,prec,ok:prec==null?null:prec>=LIM_LEV.peg}}
 
 /* --- UI --- */
 let levCur=null,levLast=null;
@@ -275,7 +277,10 @@ function renderPeg(){
   title.innerHTML="Two peg test<small>Collimation check · ≥ 1:10000</small>";
   const P=LEV.peg;
   app.innerHTML=`<div id="pbanner"></div>
-  <div class="card"><h2>Pegs</h2><div class="row"><span>Distance A–B (m)</span><input class="cfgin" inputmode="decimal" id="pegD" value="${esc(P.d)}" placeholder="40"></div></div>
+  <div class="card"><h2>Pegs</h2><div class="row"><span>Distance A–B (m)</span><input class="cfgin" inputmode="decimal" id="pegD" value="${esc(P.d)}" placeholder="40"></div>
+    <div class="row"><span>Instrument from near peg (m)</span><input class="cfgin" inputmode="decimal" id="pegN" value="${esc(P.n||"")}" placeholder="4"></div>
+    <div class="row"><span>Near setup</span><div class="seg" style="width:210px"><button class="${P.pos!=="out"?"on":""}" onclick="pegPos('in')">Inside</button><button class="${P.pos==="out"?"on":""}" onclick="pegPos('out')">Outside</button></div></div>
+    <p class="note">Inside: sights n and D − n, so the error builds up over D − 2n (40 − 2×4 = 32 m). Outside: sights n and D + n, difference D.</p></div>
   <div class="card"><h2>1 · Instrument midway</h2>
     <div class="obs"><label><b>Staff A</b></label>${tmbHTML("mid.a",P.mid.a)}</div>
     <div class="obs"><label><b>Staff B</b></label>${tmbHTML("mid.b",P.mid.b)}</div><div id="pm"></div></div>
@@ -291,13 +296,16 @@ function renderPeg(){
       if(/^\d\.\d{3}$/.test(el.value)||/^\d{4}$/.test(el.value))next()});
     el.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();next()}})});
   document.getElementById("pegD").addEventListener("input",e=>{P.d=e.target.value;levSave();updatePeg()});
+  document.getElementById("pegN").addEventListener("input",e=>{P.n=e.target.value;levSave();updatePeg()});
   levLast=null;updatePeg();
 }
+function pegPos(p){LEV.peg.pos=p;levSave();renderPeg()}
 function updatePeg(){const c=pegCalc();
   document.getElementById("pm").innerHTML=wRow("A",c.a1)+wRow("B",c.b1)+(c.h1!=null?`<div class="row"><span>True difference h1</span><b>${c.h1.toFixed(3)}</b></div>`:"");
   document.getElementById("pn").innerHTML=wRow("A",c.a2)+wRow("B",c.b2)+(c.h2!=null?`<div class="row"><span>Apparent difference h2</span><b>${c.h2.toFixed(3)}</b></div>`:"");
   document.getElementById("pr").innerHTML=`<div class="row"><span>Collimation error e = |h1 − h2|</span><b>${c.e==null?"–":(c.e*1000).toFixed(0)+" mm"}</b></div>
-    <div class="row"><span>Precision d / e (≥ 1:10000)</span>${c.prec==null?pill("wait",c.e!=null&&!c.d?"enter distance":"—"):pill(c.ok?"ok":"bad",c.prec===Infinity?"1/∞":"1/"+Math.round(c.prec))}</div>`;
+    <div class="row"><span>Length for precision ${c.n!=null&&c.d?(c.out?"= D":"= D − 2n = "+c.d+" − 2×"+c.n):"= D"}</span><b>${c.Ld!=null?(+c.Ld.toFixed(3))+" m":"–"}</b></div>
+    <div class="row"><span>Precision L / e (≥ 1:10000)</span>${c.prec==null?pill("wait",c.e!=null&&!c.d?"enter distance":"—"):pill(c.ok?"ok":"bad",c.prec===Infinity?"1/∞":"1/"+Math.round(c.prec))}</div>`;
   const bad=[c.a1,c.b1,c.a2,c.b2].some(w=>w&&w.bad)||c.ok===false;
   document.getElementById("pbanner").innerHTML=c.ok===false?`<div class="alarm"><h4>⚠ Collimation worse than 1:10000</h4><ul><li>Ask for the instrument to be adjusted or changed before fly levelling.</li></ul></div>`:c.ok?`<div class="passbar">✓ Instrument OK for levelling</div>`:"";
   const st=bad?"bad":c.ok?"ok":"part";if(levLast!==null&&st!==levLast){if(st==="bad")toast("⚠ Two peg test failed",true);else if(st==="ok")toast("✓ Two peg test passed")}levLast=st}
@@ -450,7 +458,7 @@ function rfBookHTML(L,c){
 function levMerge(src){if(src&&!Array.isArray(src.lines))return 0;let n=0;if(!src||!Array.isArray(src.lines))return 0;
   for(const L of src.lines)if(!LEV.lines.some(x=>x.id===L.id)){LEV.lines.push(L);n++}
   const P=LEV.peg,Q=src.peg;if(Q)for(const g of["mid","near"])for(const s of["a","b"])if(!(P[g][s]||[]).some(v=>v)&&(Q[g]&&Q[g][s]||[]).some(v=>v)){P[g][s]=Q[g][s];n++}
-  if(Q&&!P.d&&Q.d)P.d=Q.d;levSave();return n}
+  if(Q&&!P.d&&Q.d)P.d=Q.d;if(Q&&!P.n&&Q.n)P.n=Q.n;if(Q&&!P.pos&&Q.pos)P.pos=Q.pos;levSave();return n}
 function levCSV(csv){if(!LEV.lines.length)return "";let out="";
   for(const L of LEV.lines){const c=lineCalc(L);
     const rows=[["Station","BS Top","BS Mid","BS Bot","FS Top","FS Mid","FS Bot","RL"]];
