@@ -430,7 +430,7 @@ function renderHub(){
     <div class="wic">${icon}</div><div class="wtx"><b>${name}</b><small>${sub}</small>${prog!=null?`<div class="bar"><i style="width:${prog}%"></i></div>`:""}</div><span class="wgo">${href?"›":""}</span></button>`;
   const tsub=X=>`${X.S.done.length} / ${X.N} stations${X.tb?" · "+X.tb+" warning"+(X.tb>1?"s":""):X.S.err!=null?" · closed "+X.S.err+"″":""}`;
   app.innerHTML=`
-  <div class="hubhead"><h3>Today's work</h3><p>Tap a job. Every reading saves on this phone as you type.</p><p class="mkby">Made by Gaurab KC<br><a href="mailto:081bce068.gaurab@pcampus.edu.np">081bce068.gaurab@pcampus.edu.np</a></p></div>
+  <div class="hubhead"><h3>Today's work</h3><p>Tap a job. Every reading saves on this phone as you type.</p><p class="mkby">Made by Gaurab KC with Claude (Anthropic)<br><a href="mailto:081bce068.gaurab@pcampus.edu.np">081bce068.gaurab@pcampus.edu.np</a></p></div>
   ${work("trav","⌖","Major Traverse",tsub(MA),MA.tb?"bad":MA.S.done.length===MA.N?"ok":"",Math.round(100*MA.S.done.length/MA.N))}
   ${work("fly","〰","Unlinked Fly Levelling",lsub(LS.fly),LS.fly.lw||LS.fly.pc.ok===false?"bad":"",null)}
   ${work("mlev","⥁","Minor Loop Levelling",`${LS.mlev.n} loop${LS.mlev.n===1?"":"s"}${LS.mlev.lc?" · "+LS.mlev.lc+" closed":""}${LS.mlev.lw?" · "+LS.mlev.lw+" warning"+(LS.mlev.lw>1?"s":""):" · middle hair · 0.6–3.0 m"}`,LS.mlev.lw?"bad":"",null)}
