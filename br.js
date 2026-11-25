@@ -68,6 +68,9 @@ function brCoords(sol){const N0=bNum(BR.start.N),E0=bNum(BR.start.E),b0=bDeg(BR.
     const iP=p.indexOf(P),o=findObs(P,Q,r);if(!o)continue;const c=obsCalc(o);const ang=c.refl?360-T.adj[iP]:T.adj[iP];
     const az=o.bs===Q?brg(P,Q)+ang:brg(P,Q)-ang;X[r]={N:X[P].N+d*Math.cos(az*Math.PI/180),E:X[P].E+d*Math.sin(az*Math.PI/180)};again=true}}
   return X}
+// distance between any two bridge stations (for loop levelling K), from the triangulation coordinates
+function brPairs(){const sol=brSolve(),keep=BR.start;let X;if(bNum(BR.start.N)==null||bNum(BR.start.E)==null||bDeg(BR.start.brg)==null)BR.start={N:"0",E:"0",brg:["0","0","0"]};try{X=brCoords(sol)}finally{BR.start=keep}
+  const m={},k=Object.keys(X);for(const a of k)for(const b of k)if(a!==b)m[a+"|"+b]=Math.hypot(X[a].N-X[b].N,X[a].E-X[b].E);return m}
 // reciprocal levelling (3-wire): h = mean on A − mean on B in each set (= rise A→B); true = average; error = h1 − h2
 function brWire(a){const t=rd(a[0]),m=rd(a[1]),b=rd(a[2]);if(m==null)return null;const full=t!=null&&b!=null;const mean=full?r3((t+m+b)/3):m;
   return{mean,dist:full?Math.abs(t-b)*100:null,chk:full?Math.abs((t+b)/2-m):null,bad:full&&Math.abs((t+b)/2-m)>BR_LIM.wire+1e-9}}
@@ -109,6 +112,7 @@ function renderBR(h){
   title.innerHTML="Bridge Site Survey<small>Triangulation · levelling · hydrology</small>";
   const sol=brSolve(),rc=recCalc(sol),hy=hydCalc(),is=brIssues(sol);
   const nb=BR.bases.filter(b=>baseCalc(b)).length,na=BR.obs.filter(o=>obsCalc(o).done).length,nt=sol.tc.filter(T=>T.ready).length;
+  const lp=(()=>{const x=allLev(k=>k==="bloop"?LEV.lines.map(L=>{const c=lineCalc(L);return c.err!=null&&c.perm!=null?Math.abs(c.err)<=c.perm:null}):null).bloop||[];return x})();
   const fl=(()=>{const x=allLev(k=>k==="bfly"?LEV.lines.map(L=>{const c=lineCalc(L);return c.err!=null&&c.perm!=null?Math.abs(c.err)<=c.perm:null}):null).bfly||[];return x})();
   const step=(n,href,name,sub,state)=>`<button class="wcard ${state}" onclick="location.hash='${href}'"><div class="wic" style="font-size:20px">${n}</div><div class="wtx"><b>${name}</b><small>${sub}</small></div><span class="wgo">›</span></button>`;
   const jobN=j=>CT.setups.filter(S=>S.job===j),jobTxt=j=>{const m=jobN(j),n=m.reduce((a,S)=>a+S.pts.length,0),w=m.reduce((a,S)=>a+ctIssues(S).length,0);return{t:`${m.length} setup${m.length===1?"":"s"} · ${n} point${n===1?"":"s"}${w?" · "+w+" warning"+(w>1?"s":""):""}`,s:w?"bad":n?"ok":""}};
@@ -122,12 +126,13 @@ function renderBR(h){
   ${step(3,"br/ang","Angles",`${na} / ${BR.obs.length} done · base 2 sets, others 1 set`,BR.obs.some(o=>{const c=obsCalc(o);return c.setBad||c.s.some(s=>s&&s.faceBad)})?"bad":na&&na===BR.obs.length?"ok":"")}
   ${step(4,"br/tri","Triangles · axis length",sol.axMean!=null?`${esc(BR.axis.join(""))} = ${sol.axMean.toFixed(3)} m${sol.axPrec!=null?" · 1:"+(sol.axPrec===Infinity?"∞":Math.round(sol.axPrec)):""}`:`${nt} / ${BR.tris.length} triangles closed`,sol.tc.some(T=>T.ready&&(T.bad||T.ill.some(x=>x)))||sol.axBad?"bad":sol.axPrec!=null?"ok":"")}
   ${step(5,"br/rec","Reciprocal levelling",rc.err!=null?`error ${rc.err.toFixed(1)} mm · ±${rc.perm!=null?rc.perm.toFixed(1):"?"} mm${rc.rlB!=null?" · RL "+esc(BR.axis[1])+" "+rc.rlB.toFixed(3):""}`:"across the river · 2 sets",rc.bad?"bad":rc.err!=null&&rc.perm!=null?"ok":"")}
+  ${step(6,"bloop","Loop levelling",lp.length?`${lp.length} loop${lp.length>1?"s":""} · ${lp.filter(x=>x===true).length} closed OK`:"round the stations · K = sum of legs · ±24√K",lp.some(x=>x===false)?"bad":lp.some(x=>x)?"ok":"")}
   ${sec("Mapping (total station)")}
-  ${step(6,"br/det","Detailing",D.t+" · 200 m × 120 m",D.s)}
-  ${step(7,"br/ls","L-section",LS.t+" · 150 m up, 50 m down",LS.s)}
-  ${step(8,"br/xs","X-sections",XS.t+" · every 25 m",XS.s)}
+  ${step(7,"br/det","Detailing",D.t+" · 200 m × 120 m",D.s)}
+  ${step(8,"br/ls","L-section",LS.t+" · 150 m up, 50 m down",LS.s)}
+  ${step(9,"br/xs","X-sections",XS.t+" · every 25 m",XS.s)}
   ${sec("River")}
-  ${step(9,"br/hyd","Hydrology",hy.vmean!=null?`mean velocity ${hy.vmean.toFixed(2)} m/s`:"float velocity · HFL · NWL · LWL",hy.vmean!=null?"ok":"")}
+  ${step(10,"br/hyd","Hydrology",hy.vmean!=null?`mean velocity ${hy.vmean.toFixed(2)} m/s`:"float velocity · HFL · NWL · LWL",hy.vmean!=null?"ok":"")}
   ${sec("Settings")}
   ${step("⚙","br/set","Axis · limits · data","Station letters · norms · backup · CSV","")}`;
   brBanner();

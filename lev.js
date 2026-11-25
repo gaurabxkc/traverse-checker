@@ -3,6 +3,7 @@
 const LEVP={
   lev:{key:"lev-v1",home:"lev",name:"Fly Levelling",lim:{wire:0.003,chk:"tb",lo:0.6,hi:3.0,warn:2.0,balance:1,k:24,peg:10000}},   // linked to the traverse
   fly:{key:"fly-v1",home:"fly",name:"Unlinked Fly Levelling",lim:{wire:0.003,chk:"mean",lo:0.6,hi:2.0,warn:null,balance:1,k:24,peg:10000}},
+  bloop:{key:"bloop-v1",home:"bloop",name:"Bridge Loop Levelling",lim:{wire:0.003,chk:"mean",lo:0.6,hi:3.0,warn:null,balance:1,k:24,peg:10000}}, // closed loop through the bridge stations (e.g. A-C-G-E-A); K = sum of the legs
   bfly:{key:"bfly-v1",home:"bfly",name:"Bridge Fly Levelling",lim:{wire:0.003,chk:"mean",lo:0.6,hi:2.0,warn:null,balance:1,k:24,peg:10000}}, // BM -> bridge axis A, same norms as fly
   mlev:{key:"mlev-v1",home:"mlev",name:"Minor Loop Levelling",mid:true,book:"rf",lim:{wire:0.003,chk:"tb",lo:0.6,hi:3.0,warn:null,balance:1,k:24,peg:10000}}}; // middle hair only, 0.6-3.0 m, loop through the minor stations; camp norms: 0.6-2 m, |mean-mid| <= 3 mm
 let LK="lev",LP=LEVP.lev,LIM_LEV=LP.lim,LEV;
@@ -10,7 +11,8 @@ function useLev(k){LK=k;LP=LEVP[k];LIM_LEV=LP.lim;try{LEV=JSON.parse(localStorag
   if(!LEV||!Array.isArray(LEV.lines))LEV={lines:[],peg:{d:"",mid:{a:[],b:[]},near:{a:[],b:[]}}};if(!LEV.peg)LEV.peg={d:"",mid:{a:[],b:[]},near:{a:[],b:[]}}}
 function allLev(fn){const prev=LK,keep=LEV,out={};for(const k of Object.keys(LEVP)){useLev(k);out[k]=fn(k)}LK=prev;LP=LEVP[prev];LIM_LEV=LP.lim;LEV=keep;return out}
 const isMid=L=>LP.mid||L.mode==="mid";
-function legMap(){const m={};try{allTrav(()=>{for(const l of legs())if(l.avg!=null){m[l.from+"|"+l.to]=l.avg;m[l.to+"|"+l.from]=l.avg}})}catch(e){}return m}
+const brLev=()=>LK==="bfly"||LK==="bloop";
+function legMap(){const m={};if(LK==="bloop"){try{Object.assign(m,brPairs())}catch(e){}return m}try{allTrav(()=>{for(const l of legs())if(l.avg!=null){m[l.from+"|"+l.to]=l.avg;m[l.to+"|"+l.from]=l.avg}})}catch(e){}return m}
 function autoK(L){const seq=[L.start].concat(L.setups.map(u=>u.fs.p)).filter(p=>p&&!/^TP/i.test(p));if(seq.length<2)return null;
   const m=legMap();let d=0;for(let i=1;i<seq.length;i++){if(seq[i]===seq[i-1])continue;const x=m[seq[i-1]+"|"+seq[i]];if(x==null)return{miss:seq[i-1]+"–"+seq[i]};d+=x}return{d}}
 const chkLbl=()=>LIM_LEV.chk==="mean"?"Mean − Mid":"(T+B)/2 − M",rngTxt=()=>LIM_LEV.lo+"–"+LIM_LEV.hi.toFixed(1)+" m";
@@ -83,8 +85,8 @@ function renderLev(h){
   if(part==="peg")return renderPeg();
   const L=LEV.lines.find(x=>x.id===part);
   if(L)return renderLine(L);
-  levCur=null;backTo=LK==="bfly"?"br":"";homeBtn.classList.remove("hidden");homeBtn.textContent=LK==="bfly"?"◀ Bridge":"◀ Home";
-  title.innerHTML=`${LP.name}<small>${LK==="bfly"?"BM → bridge axis · 3-wire · ±24√K":LK==="fly"?"0.6–2.0 m · |mean − mid| ≤ 3 mm":LK==="mlev"?"Middle hair · 0.6–3.0 m · ±24√K":"Fly levelling · two peg test"}</small>`;
+  levCur=null;backTo=brLev()?"br":"";homeBtn.classList.remove("hidden");homeBtn.textContent=brLev()?"◀ Bridge":"◀ Home";
+  title.innerHTML=`${LP.name}<small>${LK==="bloop"?"Closed loop through the bridge stations · ±24√K":LK==="bfly"?"BM → bridge axis · 3-wire · ±24√K":LK==="fly"?"0.6–2.0 m · |mean − mid| ≤ 3 mm":LK==="mlev"?"Middle hair · 0.6–3.0 m · ±24√K":"Fly levelling · two peg test"}</small>`;
   const pc=pegCalc();
   const cards=LEV.lines.map(L=>{const c=lineCalc(L),is=levIssues(L);
     const st=is.length?pill("bad",is.length+" warning"+(is.length>1?"s":"")):c.err!=null?pill("ok","closed "+(c.err>0?"+":"")+c.err+" mm"):pill("wait",L.setups.length+" setups");
@@ -101,7 +103,7 @@ function renderLev(h){
     ${LP.mid?"":`<div class="row"><span>Two peg collimation</span><b>≥ 1 : 10000</b></div>
     <div class="row"><span>3-wire check |${chkLbl()}|</span><b>≤ 3 mm</b></div>`}
     <div class="row"><span>Staff reading (middle)</span><b>${rngTxt()}${LIM_LEV.warn?" · prefer ≤ "+LIM_LEV.warn+" m":""}</b></div>
-    <p class="note">${LK==="mlev"?"Camp norms for levelling through the minor stations: middle hair only, readings 0.6–3.0 m, closing error ±24√K. K comes from the traverse leg lengths (or type it). Corrections are spread equally over the setups. Book: Rise and Fall format (15).":LK==="bfly"?"Bridge site: carry the RL from the given BM to the axis end on your bank and close the circuit (back to the BM). Same norms as the fly levelling: 0.6–2.0 m, |mean − mid| ≤ 3 mm, ±24√K.":LK==="fly"?"Norms given at camp: readings 0.6–2.0 m, |mean − mid| ≤ 3 mm. BS/FS balance, 24√K and 1:10000 from the guidelines.":"BS/FS balance, 24√K and 1:10000 are from the guidelines. 0.6–3.0 m is the guideline's turning-point rule (road alignment item 14); ≤ 2 m is the classroom habit, shown in yellow only. The 3 mm 3-wire limit is this app's default."}</p></div>
+    <p class="note">${LK==="bloop"?"Bridge site loop: start on a station with known RL (e.g. "+esc(BR.axis[0])+"), go round the stations (e.g. A → C → G → E → A) and close on the start. Middle hair by default (switch a line to 3-wire if you read all three). K = total distance levelled = sum of the legs, taken from the bridge triangulation; never ×2 for a closed loop. Book: Rise and Fall (15) for middle hair, format 12 for 3-wire.":LK==="mlev"?"Camp norms for levelling through the minor stations: middle hair only, readings 0.6–3.0 m, closing error ±24√K. K comes from the traverse leg lengths (or type it). Corrections are spread equally over the setups. Book: Rise and Fall format (15).":LK==="bfly"?"Bridge site: carry the RL from the given BM to the axis end on your bank and close the circuit (back to the BM). Same norms as the fly levelling: 0.6–2.0 m, |mean − mid| ≤ 3 mm, ±24√K.":LK==="fly"?"Norms given at camp: readings 0.6–2.0 m, |mean − mid| ≤ 3 mm. BS/FS balance, 24√K and 1:10000 from the guidelines.":"BS/FS balance, 24√K and 1:10000 are from the guidelines. 0.6–3.0 m is the guideline's turning-point rule (road alignment item 14); ≤ 2 m is the classroom habit, shown in yellow only. The 3 mm 3-wire limit is this app's default."}</p></div>
   <div class="card"><h2>Data safety</h2><p class="note">Backup, merge and Excel export on the Traverse screen include levelling too.</p>
     <div class="btns" style="margin-top:8px"><button class="btn pri" onclick="backup()">Save backup</button><button class="btn" onclick="exportCSV()">Excel export</button></div>
     <div class="btns" style="margin-top:10px"><button class="btn" onclick="clearLev()">Clear levelling data…</button></div></div>`;
@@ -110,7 +112,7 @@ function knownRL(p,self){if(!p)return null;let hit=null;allLev(()=>{if(hit)retur
 function useKnown(){const k=knownRL(levCur.start,levCur);if(k){levCur.rl=k.rl.toFixed(3);levSave();renderLine(levCur)}}
 function setLevMode(m){if(levCur.setups.length&&!confirm("Switch reading mode for this line? Readings already typed stay saved."))return;levCur.mode=m;levSave();renderLine(levCur)}
 function minorRoute(){try{const c=loadCfg("minor").cfg;const mN=Array.from({length:c.m},(_,i)=>c.px+(i+1));return c.type==="link"?[c.b].concat(mN,[c.c]).filter(Boolean):c.cps.concat(mN)}catch(e){return[]}}
-function addLine(){const n=LEV.lines.length+1;const mr=LP.mid?minorRoute():[];const L={id:newId(),name:(LP.mid?"Loop ":"Line ")+n,start:LP.mid?(mr[0]||"BM"):"BM",rl:"",closeP:"",closeRl:"",setups:[]};if(LP.mid)L.mode="mid";
+function addLine(){const n=LEV.lines.length+1;const mr=LP.mid?minorRoute():[];const lp=LK==="bloop";const L={id:newId(),name:(LP.mid||lp?"Loop ":"Line ")+n,start:lp?BR.axis[0]:LP.mid?(mr[0]||"BM"):"BM",rl:"",closeP:"",closeRl:"",setups:[]};if(LP.mid||lp)L.mode="mid";
   LEV.lines.push(L);levSave();location.hash=LP.home+"/"+L.id}
 function tmbHTML(path,v,mid){v=v||[];return `<div class="tmb" data-path="${path}">${(mid?[["M",1]]:[["T",0],["M",1],["B",2]]).map(([l,p])=>`<input inputmode="decimal" enterkeyhint="next" placeholder="${l}" data-p="${p}" value="${esc(v[p]??"")}">`).join("")}</div>`}
 function renderLine(L){
@@ -127,7 +129,7 @@ function renderLine(L){
     <div class="row"><span>RL of start (m)</span><input class="cfgin" inputmode="decimal" data-f="rl" value="${esc(L.rl||"")}" placeholder="1312.034"></div>
     ${(()=>{const k=knownRL(L.start,L);return k&&String(k.rl)!==String(L.rl)?`<div class="btns" style="margin:6px 0"><button class="btn" onclick="useKnown()">Use RL ${k.rl.toFixed(3)} of ${esc(L.start)} from “${esc(k.line)}”</button></div>`:""})()}
     ${LP.mid?"":`<div class="row"><span>Readings</span><div class="seg" style="width:210px"><button class="${L.mode!=="mid"?"on":""}" onclick="setLevMode('3w')">3-wire</button><button class="${L.mode==="mid"?"on":""}" onclick="setLevMode('mid')">Middle only</button></div></div>`}
-    ${isMid(L)?`<div class="row"><span>Loop length K (km)</span><input class="cfgin" inputmode="decimal" data-f="kKm" value="${esc(L.kKm||"")}" placeholder="auto from traverse"></div><p class="note">Middle hair only: no stadia, so K comes from the traverse leg lengths between the named stations (leave blank) or type it. Error is spread equally over the setups.</p>`:""}
+    ${isMid(L)?`<div class="row"><span>Loop length K (km)</span><input class="cfgin" inputmode="decimal" data-f="kKm" value="${esc(L.kKm||"")}" placeholder="${LK==="bloop"?"auto from bridge":"auto from traverse"}"></div><p class="note">Middle hair only: no stadia, so K comes from the ${LK==="bloop"?"bridge triangulation distances":"traverse leg lengths"} between the named stations (leave blank) or type it. Error is spread equally over the setups.</p>`:""}
     <div class="row"><span>Close on other BM</span><input class="cfgin" data-f="closeP" value="${esc(L.closeP||"")}" placeholder="(blank = start)"></div>
     <div class="row"><span>Its RL (m)</span><input class="cfgin" inputmode="decimal" data-f="closeRl" value="${esc(L.closeRl||"")}" placeholder="only if other BM"></div>
     <p class="note">Coming back to the start point closes the line automatically: name the last FS point the same as the start.</p></details>
@@ -188,7 +190,7 @@ function updateLine(){
    `<div class="row"><span>ΣBS / ΣFS</span><b>${fm(c.sBS)} / ${fm(c.sFS)}</b></div>
     <div class="row"><span>ΣRise / ΣFall</span><b>${fm(c.sR)} / ${fm(c.sF)}</b></div>
     <div class="row"><span>Arithmetic check</span>${c.arith==null?pill("wait","—"):pill(c.arith?"ok":"bad",c.arith?"ΣBS−ΣFS = ΣR−ΣF = ΔRL":"mismatch")}</div>
-    <div class="row"><span>Distance K</span><b>${isMid(L)?(num(L.kKm)!=null?c.K.toFixed(3)+" km (entered)":c.aK&&c.aK.d!=null?c.K.toFixed(4)+" km (traverse legs)":c.aK&&c.aK.miss?"no leg "+esc(c.aK.miss)+": type K":"enter loop length"):c.dist.toFixed(1)+" m = "+c.K.toFixed(4)+" km"}</b></div>
+    <div class="row"><span>Distance K</span><b>${isMid(L)?(num(L.kKm)!=null?c.K.toFixed(3)+" km (entered)":c.aK&&c.aK.d!=null?c.K.toFixed(4)+(LK==="bloop"?" km (bridge distances)":" km (traverse legs)"):c.aK&&c.aK.miss?"no leg "+esc(c.aK.miss)+": type K":"enter loop length"):c.dist.toFixed(1)+" m = "+c.K.toFixed(4)+" km"}</b></div>
     <div class="row"><span>Permissible ±24√K</span><b>${c.perm==null?"—":"±"+c.perm.toFixed(1)+" mm"}</b></div>
     <div class="row"><span>Closing error</span>${closeTxt}</div>
     ${c.tbm.length?`<div class="row"><span><b>Adjusted RLs</b> (error spread ${isMid(L)?"equally per setup":"by distance"})</span><span></span></div>`:""}${c.tbm.map(t=>`<div class="row"><span>${esc(t.p)}${t.vals.length>1?" · visited "+t.vals.length+"×, averaged":""}</span><span class="big">${t.adj.toFixed(3)}</span></div>`).join("")}`;

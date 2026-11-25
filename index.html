@@ -242,6 +242,8 @@ function legs(){ // leg i: ST[i] -> ST[i+1]; FW measured at ST[i] (its FS), BW a
     return{from:s,to:t,fw,bw,avg,disc,prec};
   });
 }
+// leg ratio is judged to one decimal like the norm "2 : 1" (2.01 : 1 passes, 2.05 : 1 does not)
+const ratioOver=S=>S.ratio!=null&&Math.round(S.ratio*10)/10>LIM.ratio;
 function summary(){
   const L=legs(),known=L.filter(l=>l.avg!=null);
   let ratio=null,maxL=null,minL=null;
@@ -265,7 +267,7 @@ let cur=null,lastStatus=null;
 let backTo="",guideTo="guide";homeBtn.onclick=()=>{location.hash=backTo};guideBtn.onclick=()=>{location.hash=guideTo};
 window.addEventListener("hashchange",route);
 function route(){const h=decodeURIComponent(location.hash.slice(1));lastStatus=null;backTo="";homeBtn.textContent="◀ All";guideBtn.classList.remove("hidden");
-  for(const lk of["lev","fly","mlev","bfly"])if(h===lk||h.startsWith(lk+"/")){useLev(lk);guideTo=lk+"/guide";renderLev(h);window.scrollTo(0,0);return}
+  for(const lk of["lev","fly","mlev","bfly","bloop"])if(h===lk||h.startsWith(lk+"/")){useLev(lk);guideTo=lk+"/guide";renderLev(h);window.scrollTo(0,0);return}
   if(h==="ct"){location.hash=typeof ctJob!=="undefined"&&ctJob?"br/"+ctJob:"";return} // general coordinate transfer menu removed; setups live under the bridge jobs
   if(h.startsWith("ct/")){renderCT(h);window.scrollTo(0,0);return}
   if(h==="br"||h.startsWith("br/")){renderBR(h);window.scrollTo(0,0);return}
@@ -415,7 +417,7 @@ function setupCard(){
     <p class="note">Changing this never deletes readings. Stations you remove are hidden and come back if you add them again.</p></div>`}
 const routeTxt=()=>LINK?`${AREF} → ${ST[0]} → … → ${ST[N-1]} → ${DREF}`:`${ST[0]} → … → ${ST[N-1]} → ${ST[0]}`;
 function travStats(k){useTrav(k,true);const S=summary();
-  const tb=ST.filter(s=>issues(s).length).length+((S.ratio!=null&&S.ratio>LIM.ratio)||(S.err!=null&&Math.abs(S.err)>S.perm)?1:0);
+  const tb=ST.filter(s=>issues(s).length).length+(ratioOver(S)||(S.err!=null&&Math.abs(S.err)>S.perm)?1:0);
   return{S,tb,N,ok:PROF.configured&&PROF.ready}}
 function renderHub(){
   backTo="";homeBtn.classList.add("hidden");guideBtn.classList.add("hidden");
@@ -457,7 +459,7 @@ function renderHome(){
     app.innerHTML=`<div class="card hero"><div><h3>Set up the ${PROF.name.toLowerCase()}</h3><p>${PK==="minor"?"A minor traverse usually runs from one major line to another (link), like the template: M14→M15 … M17→M18. Pick your stations, then Apply.":"Pick your stations, then Apply."}</p></div></div>${setupCard()}`;return}
   const S=summary(),[h3,p]=motto(S);
   const bad=ST.map(s=>[s,issues(s)]).filter(x=>x[1].length);
-  const ratioBad=S.ratio!=null&&S.ratio>LIM.ratio,angBad=S.err!=null&&Math.abs(S.err)>S.perm;
+  const ratioBad=ratioOver(S),angBad=S.err!=null&&Math.abs(S.err)>S.perm;
   const precBad=S.L.filter(l=>l.prec!=null&&l.prec<LIM.prec);
   const alarms=[...bad.map(([s,is])=>`<b>${s}</b>: ${is.join(" · ")}`)];
   if(ratioBad)alarms.push(`Leg ratio ${S.ratio.toFixed(2)}:1 exceeds ${LIM.ratio}:1 (${S.maxL.from}–${S.maxL.to} vs ${S.minL.from}–${S.minL.to})`);
@@ -594,7 +596,7 @@ function blobFile(text,name,type){return new File([text],name,{type})}
 function download(f){const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
 function allTrav(fn){const prev=PK||"major",out={};for(const k of["major","minor"]){useTrav(k,true);out[k]=fn(k)}useTrav(prev,true);return out}
 function backupFile(){const t=allTrav(k=>({config:loadCfg(k).configured?loadCfg(k).cfg:null,data:D}));
-  return blobFile(JSON.stringify({app:"trav-major-v1",saved:new Date().toISOString(),config:t.major.config,data:t.major.data,minor:t.minor,...(()=>{const a=allLev(()=>LEV);return{lev:a.lev,fly:a.fly,mlev:a.mlev,bfly:a.bfly}})(),ct:CT,br:BR},null,1),`survey-camp-backup-${stamp()}.json`,"application/json")}
+  return blobFile(JSON.stringify({app:"trav-major-v1",saved:new Date().toISOString(),config:t.major.config,data:t.major.data,minor:t.minor,...(()=>{const a=allLev(()=>LEV);return{lev:a.lev,fly:a.fly,mlev:a.mlev,bfly:a.bfly,bloop:a.bloop}})(),ct:CT,br:BR},null,1),`survey-camp-backup-${stamp()}.json`,"application/json")}
 function backup(){download(backupFile())}
 async function shareBackup(){const f=backupFile();
   if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:f.name})}catch(e){}}else{download(f);alert("Sharing not supported here; file saved to Downloads instead.")}}
@@ -611,7 +613,7 @@ document.getElementById("fileIn").addEventListener("change",async e=>{
     useTrav("major",true);let r=mergeTrav(j.data||j,"");n+=r[0];clash=clash.concat(r[1]);
     if(j.minor){if(j.minor.config&&!loadCfg("minor").configured)localStorage.setItem(PROFILES.minor.cfgKey,JSON.stringify(j.minor.config));
       useTrav("minor",true);r=mergeTrav(j.minor.data,"minor ");n+=r[0];clash=clash.concat(r[1])}
-    useTrav(prev,true);{const r=allLev(k=>levMerge(j[k]));n+=r.lev+r.fly+r.mlev+r.bfly;n+=ctMerge(j.ct);n+=brMerge(j.br)}route();
+    useTrav(prev,true);{const r=allLev(k=>levMerge(j[k]));n+=r.lev+r.fly+r.mlev+r.bfly+r.bloop;n+=ctMerge(j.ct);n+=brMerge(j.br)}route();
     alert(`Merged ${n} values.`+(clash.length?`\nDifferent from this phone (kept this phone's): ${clash.join(", ")}`:""));
   }catch(err){alert("Not a valid backup file.")}
 });
@@ -628,7 +630,7 @@ function travCSV(csv){
 function exportCSV(){
   const csv=r=>r.map(v=>v==null?"":/[",\n]/.test(v)?`"${String(v).replace(/"/g,'""')}"`:v).join(",");
   const t=allTrav(k=>PROF.configured&&PROF.ready?travCSV(csv):"");
-  download(blobFile(t.major+(t.minor?"\n\n"+t.minor:"")+(a=>a.fly+a.lev+a.mlev+a.bfly)(allLev(k=>levCSV(csv)?"\n\n"+LP.name.toUpperCase()+levCSV(csv):""))+ctCSV(csv)+brCSV(csv),`survey-camp-excel-${stamp()}.csv`,"text/csv"));
+  download(blobFile(t.major+(t.minor?"\n\n"+t.minor:"")+(a=>a.fly+a.lev+a.mlev+a.bfly+a.bloop)(allLev(k=>levCSV(csv)?"\n\n"+LP.name.toUpperCase()+levCSV(csv):""))+ctCSV(csv)+brCSV(csv),`survey-camp-excel-${stamp()}.csv`,"text/csv"));
 }
 if("serviceWorker"in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js");
 applyFont();route();

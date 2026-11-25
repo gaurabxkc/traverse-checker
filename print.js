@@ -266,6 +266,7 @@ const PR_BOOKS=[["major","Major traverse",()=>prTravAvail("major"),()=>prTravPag
   ["mlev","Minor loop levelling",()=>prLevAvail("mlev"),()=>prLevPages("mlev")],
   ["br","Bridge site",prBrAvail,prBrPages],
   ["bfly","Bridge fly levelling",()=>prLevAvail("bfly"),()=>prLevPages("bfly")],
+  ["bloop","Bridge loop levelling",()=>prLevAvail("bloop"),()=>prLevPages("bloop")],
   ["ct","Detailing points",prCTAvail,prCTPages]];
 function prCover(list){const rows=list.map(x=>`<tr><td>${x.from===x.to?x.from:x.from+"–"+x.to}</td><td class="l">${prE(x.t)}</td></tr>`).join("");
   return `<section class="pg cover"><div class="pbody"><div class="puni">Tribhuvan University<br>Institute of Engineering<br>Pulchowk Campus<br><span class="pdept">Department of Civil Engineering</span><br>Survey Instruction Committee</div>
