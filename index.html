@@ -431,7 +431,6 @@ function renderHub(){
   <div class="hubhead"><h3>Today's work</h3><p>Tap a job. Every reading saves on this phone as you type.</p><p class="mkby">Made by Gaurab KC · Group 07</p></div>
   ${work("trav","⌖","Major Traverse",tsub(MA),MA.tb?"bad":MA.S.done.length===MA.N?"ok":"",Math.round(100*MA.S.done.length/MA.N))}
   ${work("fly","〰","Unlinked Fly Levelling",lsub(LS.fly),LS.fly.lw||LS.fly.pc.ok===false?"bad":"",null)}
-  ${work("lev","≋","Fly Levelling (traverse)",lsub(LS.lev),LS.lev.lw||LS.lev.pc.ok===false?"bad":"",null)}
   ${work("mlev","⥁","Minor Loop Levelling",`${LS.mlev.n} loop${LS.mlev.n===1?"":"s"}${LS.mlev.lc?" · "+LS.mlev.lc+" closed":""}${LS.mlev.lw?" · "+LS.mlev.lw+" warning"+(LS.mlev.lw>1?"s":""):" · middle hair · 0.6–3.0 m"}`,LS.mlev.lw?"bad":"",null)}
   ${work("minor","◇","Minor Traverse",MI.ok?tsub(MI):"Set up first · one set · 1:3000 · ±1′√n",MI.tb?"bad":MI.ok&&MI.S.done.length===MI.N?"ok":"",MI.ok?Math.round(100*MI.S.done.length/MI.N):null)}
   ${(()=>{const sol=brSolve(),w=brIssues(sol).length;return work("br","⌒","Bridge Site Survey",sol.axMean!=null?`Axis ${esc(BR.axis.join(""))} = ${sol.axMean.toFixed(3)} m${w?" · "+w+" warning"+(w>1?"s":""):""}`:`Triangulation · reciprocal levelling · hydrology${w?" · "+w+" warning"+(w>1?"s":""):""}`,w?"bad":"",null)})()}
