@@ -120,7 +120,7 @@ function ctDelPt(i){if(confirm("Delete point "+(ctCur.pts[i].p||i+1)+"?")){ctCur
 function ctDelSetup(){const S=ctCur;if(prompt('Type DELETE to remove the setup at '+(S.stn||"?")+' and its points.')==="DELETE"){CT.setups=CT.setups.filter(x=>x!==S);ctSave();location.hash=S.job?"br/"+S.job:"ct"}}
 function ctClear(){if(prompt("Type DELETE to clear all coordinate transfer setups and added known points on this phone. A backup file is saved first.")==="DELETE"){backup();CT={known:{},setups:[]};ctSave();route()}}
 function renderCTKnown(){
-  ctCur=null;backTo="ct";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Setups";
+  ctCur=null;backTo=ctJob?"br/"+ctJob:"br";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Back";
   title.innerHTML="Known points<small>Control + transferred stations</small>";
   const K=ctKnown(),row=(k,v,own)=>`<div class="row"><span><b>${esc(k)}</b>${own?' <small class="note">(added)</small>':""}<br><small class="note">${v[0].toFixed(3)} · ${v[1].toFixed(3)} · ${v[2]==null?"–":(+v[2]).toFixed(3)}</small></span>${own?`<button class="btn" style="flex:none;padding:8px 12px" onclick="ctDelKnown('${esc(k)}')">Remove</button>`:""}</div>`;
   app.innerHTML=`<div class="card"><h2>Add a known point</h2>
@@ -141,7 +141,7 @@ function ctExport(){const csv=r=>r.map(v=>v==null?"":/[",\n]/.test(v)?`"${String
 function ctMerge(src){if(!src||!Array.isArray(src.setups))return 0;let n=0;for(const S of src.setups)if(!CT.setups.some(x=>x.id===S.id)){CT.setups.push(S);n++}
   for(const k in src.known||{})if(!CT.known[k]){CT.known[k]=src.known[k];n++}ctSave();return n}
 function renderCTGuide(){
-  backTo="ct";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Setups";guideBtn.classList.add("hidden");
+  backTo=ctJob?"br/"+ctJob:"br";homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Back";guideBtn.classList.add("hidden");
   title.innerHTML="How to transfer coordinates<small>Total station · coordinate mode</small>";
   const step=(n,h,b)=>`<div class="gstep"><div class="gn">${n}</div><div><b>${h}</b><div>${b}</div></div></div>`;
   app.innerHTML=`<div class="card"><h2>At every setup</h2>
@@ -158,7 +158,7 @@ function renderCTGuide(){
   <div class="card"><h2>Common mistakes</h2><ul class="note" style="padding-left:18px;margin:0">
     <li>N and E swapped (instrument may show E first).</li><li>HT changed on the pole but not in the instrument.</li>
     <li>Old job or old station still loaded in the instrument.</li><li>Prism constant different from the one set (usually −30 mm or 0).</li></ul></div>
-  <div class="nav"><button class="btn pri" onclick="location.hash='ct'">Setups</button></div>`;
+  <div class="nav"><button class="btn pri" onclick="location.hash=ctJob?'br/'+ctJob:'br'">Back</button></div>`;
 }
 
 /* --- bridge jobs: help + summaries (L-section chainage, X-section offsets) --- */

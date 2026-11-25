@@ -267,7 +267,8 @@ let backTo="",guideTo="guide";homeBtn.onclick=()=>{location.hash=backTo};guideBt
 window.addEventListener("hashchange",route);
 function route(){const h=decodeURIComponent(location.hash.slice(1));lastStatus=null;backTo="";homeBtn.textContent="◀ All";guideBtn.classList.remove("hidden");
   for(const lk of["lev","fly","mlev","bfly"])if(h===lk||h.startsWith(lk+"/")){useLev(lk);guideTo=lk+"/guide";renderLev(h);window.scrollTo(0,0);return}
-  if(h==="ct"||h.startsWith("ct/")){renderCT(h);window.scrollTo(0,0);return}
+  if(h==="ct"){location.hash=typeof ctJob!=="undefined"&&ctJob?"br/"+ctJob:"";return} // general coordinate transfer menu removed; setups live under the bridge jobs
+  if(h.startsWith("ct/")){renderCT(h);window.scrollTo(0,0);return}
   if(h==="br"||h.startsWith("br/")){renderBR(h);window.scrollTo(0,0);return}
   if(h==="print"||h.startsWith("print/")){renderPrint(h);window.scrollTo(0,0);return}
   if(h===""){renderHub();window.scrollTo(0,0);return}
@@ -435,7 +436,6 @@ function renderHub(){
   ${work("lev","≋","Fly Levelling (traverse)",lsub(LS.lev),LS.lev.lw||LS.lev.pc.ok===false?"bad":"",null)}
   ${work("mlev","⥁","Minor Loop Levelling",`${LS.mlev.n} loop${LS.mlev.n===1?"":"s"}${LS.mlev.lc?" · "+LS.mlev.lc+" closed":""}${LS.mlev.lw?" · "+LS.mlev.lw+" warning"+(LS.mlev.lw>1?"s":""):" · middle hair · 0.6–3.0 m"}`,LS.mlev.lw?"bad":"",null)}
   ${work("minor","◇","Minor Traverse",MI.ok?tsub(MI):"Set up first · one set · 1:3000 · ±1′√n",MI.tb?"bad":MI.ok&&MI.S.done.length===MI.N?"ok":"",MI.ok?Math.round(100*MI.S.done.length/MI.N):null)}
-  ${work("ct","⊕","Coordinate Transfer",`${CT.setups.length} setup${CT.setups.length===1?"":"s"} · ${CT.setups.reduce((n,S)=>n+S.pts.length,0)} points${(()=>{const w=CT.setups.reduce((n,S)=>n+ctIssues(S).length,0);return w?" · "+w+" warning"+(w>1?"s":""):""})()}`,CT.setups.some(S=>ctIssues(S).length)?"bad":"",null)}
   ${(()=>{const sol=brSolve(),w=brIssues(sol).length;return work("br","⌒","Bridge Site Survey",sol.axMean!=null?`Axis ${esc(BR.axis.join(""))} = ${sol.axMean.toFixed(3)} m${w?" · "+w+" warning"+(w>1?"s":""):""}`:`Triangulation · reciprocal levelling · hydrology${w?" · "+w+" warning"+(w>1?"s":""):""}`,w?"bad":"",null)})()}
   ${work("print","⎙","Print field book","Every recorded job as book sheets · Save as PDF","",null)}
   <p class="note" style="margin:14px 4px 8px">Coming next (per camp schedule)</p>
