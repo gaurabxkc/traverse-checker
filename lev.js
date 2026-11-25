@@ -7,8 +7,16 @@ const LEVP={
   bfly:{key:"bfly-v1",home:"bfly",name:"Bridge Fly Levelling",lim:{wire:0.003,chk:"mean",lo:0.6,hi:2.0,warn:null,balance:1,k:24,peg:10000}}, // BM -> bridge axis A, same norms as fly
   mlev:{key:"mlev-v1",home:"mlev",name:"Minor Loop Levelling",mid:true,book:"rf",lim:{wire:0.003,chk:"tb",lo:0.6,hi:3.0,warn:null,balance:1,k:24,peg:10000}}}; // middle hair only, 0.6-3.0 m, loop through the minor stations; camp norms: 0.6-2 m, |mean-mid| <= 3 mm
 let LK="lev",LP=LEVP.lev,LIM_LEV=LP.lim,LEV;
+// one two peg test for the whole camp, shared by every levelling job (key peg-v1; first filled job test is migrated)
+let PEG=null;
+function pegBlank(){return{d:"",n:"",pos:"",mid:{a:[],b:[]},near:{a:[],b:[]}}}
+function pegLoad(){if(PEG)return PEG;try{PEG=JSON.parse(localStorage.getItem("peg-v1"))}catch(e){PEG=null}
+  if(!PEG||!PEG.mid){PEG=null;for(const k of Object.keys(LEVP)){try{const o=JSON.parse(localStorage.getItem(LEVP[k].key));const q=o&&o.peg;
+      if(q&&(q.d||["mid","near"].some(g=>q[g]&&["a","b"].some(s=>(q[g][s]||[]).some(v=>v))))){PEG=q;break}}catch(e){}}
+    if(!PEG)PEG=pegBlank();try{localStorage.setItem("peg-v1",JSON.stringify(PEG))}catch(e){}}
+  return PEG}
 function useLev(k){LK=k;LP=LEVP[k];LIM_LEV=LP.lim;try{LEV=JSON.parse(localStorage.getItem(LP.key))}catch(e){LEV=null}
-  if(!LEV||!Array.isArray(LEV.lines))LEV={lines:[],peg:{d:"",mid:{a:[],b:[]},near:{a:[],b:[]}}};if(!LEV.peg)LEV.peg={d:"",mid:{a:[],b:[]},near:{a:[],b:[]}};pairAuto()}
+  if(!LEV||!Array.isArray(LEV.lines))LEV={lines:[],peg:{d:"",mid:{a:[],b:[]},near:{a:[],b:[]}}};LEV.peg=pegLoad();pairAuto()}
 function allLev(fn){const prev=LK,keep=LEV,out={};for(const k of Object.keys(LEVP)){useLev(k);out[k]=fn(k)}LK=prev;LP=LEVP[prev];LIM_LEV=LP.lim;LEV=keep;return out}
 const isMid=L=>LP.mid||L.mode==="mid";
 const brLev=()=>LK==="bfly"||LK==="bloop";
@@ -18,7 +26,7 @@ function autoK(L){const seq=[L.start].concat(L.setups.map(u=>u.fs.p)).filter(p=>
 const chkLbl=()=>LIM_LEV.chk==="mean"?"Mean − Mid":"(T+B)/2 − M",rngTxt=()=>LIM_LEV.lo+"–"+LIM_LEV.hi.toFixed(1)+" m";
 function rngOf(m){return(m<LIM_LEV.lo||m>LIM_LEV.hi)?"bad":(LIM_LEV.warn&&m>LIM_LEV.warn)?"warn":"ok"}
 useLev("lev");
-function levSave(){try{localStorage.setItem(LP.key,JSON.stringify(LEV));localStorage.setItem(TS_KEY,new Date().toISOString())}catch(e){alert("Could not save on this phone! Make a backup now.")}}
+function levSave(){try{localStorage.setItem(LP.key,JSON.stringify(LEV));if(PEG)localStorage.setItem("peg-v1",JSON.stringify(PEG));localStorage.setItem(TS_KEY,new Date().toISOString())}catch(e){alert("Could not save on this phone! Make a backup now.")}}
 function setMod(m){try{localStorage.setItem("trav-mod",m)}catch(e){}}
 function lastMod(){try{return localStorage.getItem("trav-mod")||"trav"}catch(e){return "trav"}}
 function modSwitch(m){return `<div class="seg" style="margin-bottom:14px"><button class="${m==="trav"?"on":""}" onclick="setMod('trav');location.hash=''">Traverse</button><button class="${m==="lev"?"on":""}" onclick="setMod('lev');location.hash='lev'">Levelling</button></div>`}
@@ -119,7 +127,7 @@ function renderLev(h){
     const st=is.length?pill("bad",is.length+" warning"+(is.length>1?"s":"")):c.err!=null?pill("ok","closed "+(c.err>0?"+":"")+c.err+" mm"):pill("wait",L.setups.length+" setups");
     return `<button class="lcard${is.length?" bad":""}" onclick="location.hash='${LP.home}/${L.id}'"><div><b>${esc(L.name||"Line")}</b><small>${esc(L.start||"?")} → ${esc(L.setups.length?L.setups[L.setups.length-1].fs.p:"…")} · ${c.dist?c.dist.toFixed(0)+" m":"no readings"}</small></div>${st}</button>`}).join("");
   app.innerHTML=`${LP.mid?"":`
-  <div class="card"><h2>Two peg test (before levelling)</h2>
+  <div class="card"><h2>Two peg test (once, before levelling)</h2>
     <div class="row"><span>Collimation precision (≥ 1:10000)</span>${pc.prec==null?pill("wait","not done"):pill(pc.ok?"ok":"bad",pc.prec===Infinity?"1/∞":"1/"+Math.round(pc.prec))}</div>
     <div class="btns" style="margin-top:8px"><button class="btn" onclick="location.hash='${LP.home}/peg'">Open two peg test</button></div></div>`}
   <div class="card"><h2>Levelling lines</h2>${cards||'<p class="note">No lines yet. A line starts on a BM of known RL; go to your TBMs and come back (or close on another BM).</p>'}
@@ -310,7 +318,7 @@ function updatePeg(){const c=pegCalc();
   document.getElementById("pbanner").innerHTML=c.ok===false?`<div class="alarm"><h4>⚠ Collimation worse than 1:10000</h4><ul><li>Ask for the instrument to be adjusted or changed before fly levelling.</li></ul></div>`:c.ok?`<div class="passbar">✓ Instrument OK for levelling</div>`:"";
   const st=bad?"bad":c.ok?"ok":"part";if(levLast!==null&&st!==levLast){if(st==="bad")toast("⚠ Two peg test failed",true);else if(st==="ok")toast("✓ Two peg test passed")}levLast=st}
 
-function clearLev(){if(prompt("Type DELETE to clear all levelling lines and the two peg test on this phone. A backup file is saved first.")==="DELETE"){backup();LEV={lines:[],peg:{d:"",mid:{a:[],b:[]},near:{a:[],b:[]}}};levSave();route()}}
+function clearLev(){if(prompt("Type DELETE to clear all levelling lines and the two peg test on this phone. A backup file is saved first.")==="DELETE"){backup();LEV={lines:[],peg:pegLoad()};levSave();route()}}
 function renderLevGuide(){
   backTo=LP.home;homeBtn.classList.remove("hidden");homeBtn.textContent="◀ Levelling";guideBtn.classList.add("hidden");
   title.innerHTML="How to level<small>Auto level · fly levelling · 3-wire</small>";

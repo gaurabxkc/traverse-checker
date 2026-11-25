@@ -121,7 +121,7 @@ function prTravPages(k){const prev=PK;const pages=[];try{useTrav(k,true);const t
   }finally{useTrav(prev||"major",true)}return pages}
 
 /* ================= Levelling (formats 12, 15, 11) ================= */
-function prLevAvail(k){let n=0;allLev(kk=>{if(kk===k)n=LEV.lines.filter(L=>L.setups.length).length+(pegCalc().h1!=null?1:0)});return n>0}
+function prLevAvail(k){let n=0;allLev(kk=>{if(kk===k)n=LEV.lines.filter(L=>L.setups.length).length});return n>0}
 function prFlyRows(L,c,a,b,rl0){const rows=[];let sBS=0,sFS=0,sR=0,sF=0,sD=0;const f3=prF3,cell=x=>`<td>${x??""}</td>`;
   for(let k=a;k<=b+1;k++){const B=k<=b?c.rows[k].B:null,F=k>a?c.rows[k-1].F:null,stn=k<=b?L.setups[k].bs.p:L.setups[b].fs.p;
     const br=k<=b?L.setups[k].bs.r||[]:[],fr=k>a?L.setups[k-1].fs.r||[]:[];
@@ -166,12 +166,14 @@ function prLevPages(k){const out=[];allLev(kk=>{if(kk!==k)return;
           below+=ec}
         below=`<div class="ptwo">${below}</div>`}
       out.push({t:LP.name+": "+(L.name||""),h:prPage(12,"Fly Levelling (RL Transfer)",`${prE(L.name||"")}: ${r.cap}`,`<table class="bk lev fly">${PR_FLYH}${r.rows.slice(i,i+20).join("")}${sum}</table>${below}`,meta)})}})}
-  const pc=pegCalc();
+  });return out}
+function prPegAvail(){useLev(LK);const pc=pegCalc();return pc.h1!=null||pc.h2!=null}
+function prPegPages(){const out=[];useLev(LK);const pc=pegCalc();
   if(pc.h1!=null||pc.h2!=null){const w=(x,lbl,first,h)=>`<tr>${first?`<td rowspan="2">${first}</td>`:""}<td>${lbl}</td><td>${x?prF3(x.t):""}</td><td>${x?prF3(x.m):""}</td><td>${x?prF3(x.b):""}</td><td>${x?prF3(x.mean):""}</td>${first?`<td rowspan="2">${h!=null?(h>=0?"+":"")+prF3(h):""}</td>`:""}</tr>`;
-    out.push({t:LP.name+": two peg test",h:prPage(11,"Two Peg Test","Collimation check of the level",`<table class="bk"><tr><th>Instrument</th><th>Staff at</th><th>Top</th><th>Middle</th><th>Bottom</th><th>Mean</th><th>Height difference<br>A − B</th></tr>
+    out.push({t:"Two peg test",h:prPage(11,"Two Peg Test","Collimation check of the level",`<table class="bk"><tr><th>Instrument</th><th>Staff at</th><th>Top</th><th>Middle</th><th>Bottom</th><th>Mean</th><th>Height difference<br>A − B</th></tr>
     ${w(pc.a1,"A","Midway",pc.h1)}${w(pc.b1,"B")}${w(pc.a2,"A","Near A ("+(pc.out?"outside":"inside")+")",pc.h2)}${w(pc.b2,"B")}</table>
     <table class="bk sm" style="margin-top:4mm"><tr><td class="l">Distance between pegs D</td><td>${pc.d!=null?pc.d+" m":""}</td></tr>${pc.n!=null?`<tr><td class="l">Instrument from near peg n (${pc.out?"outside":"inside"})</td><td>${pc.n} m</td></tr>`:""}<tr><td class="l">Length for precision ${pc.n!=null&&!pc.out?"D − 2n":"D"}</td><td>${pc.Ld!=null?(+pc.Ld.toFixed(3))+" m":""}</td></tr><tr><td class="l">Error |h1 − h2|</td><td>${pc.e!=null?(pc.e*1000).toFixed(0)+" mm":""}</td></tr><tr><td class="l">Precision L / e</td><td>${pc.prec==null?"":pc.prec===Infinity?"1 : ∞":"1 : "+Math.round(pc.prec).toLocaleString("en-US")} ${pc.ok==null?"":pc.ok?"OK":"Adjust the level"}</td></tr></table>`,{inst:"Auto level"})})}
-  });return out}
+  return out}
 
 /* ================= Bridge site (formats 2/3, 20, 21, 13 + angle correction, drawing, summary) ================= */
 function prBrAvail(){return BR.obs.length>0||BR.bases.some(b=>b.fw||b.bw)||BR.rec.s1.a.some(v=>v)}
@@ -264,6 +266,7 @@ function prCTPages(){const out=[];for(const S of CT.setups){if(!S.pts.length)con
 /* ================= Books, cover, preview, print ================= */
 const PR_BOOKS=[["major","Major traverse",()=>prTravAvail("major"),()=>prTravPages("major")],
   ["minor","Minor traverse",()=>prTravAvail("minor"),()=>prTravPages("minor")],
+  ["peg","Two peg test",prPegAvail,prPegPages],
   ["fly","Unlinked fly levelling",()=>prLevAvail("fly"),()=>prLevPages("fly")],
   ["lev","Fly levelling (traverse)",()=>prLevAvail("lev"),()=>prLevPages("lev")],
   ["mlev","Minor loop levelling",()=>prLevAvail("mlev"),()=>prLevPages("mlev")],

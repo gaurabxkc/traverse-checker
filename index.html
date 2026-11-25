@@ -636,7 +636,7 @@ document.getElementById("fileIn").addEventListener("change",async e=>{
   }catch(err){alert("Not a valid backup file.")}
 });
 function clearTrav(){if(prompt(`Type DELETE to clear all ${PROF.name.toLowerCase()} readings on this phone. A backup file is saved first.`)==="DELETE"){backup();D=blank();save();route()}}
-function wipe(){if(prompt('Type DELETE to clear ALL jobs on this phone (traverses and levelling). A backup file is saved first.')==="DELETE"){backup();allTrav(()=>{D=blank();save()});allLev(()=>{LEV={lines:[],peg:{d:"",mid:{a:[],b:[]},near:{a:[],b:[]}}};levSave()});CT={known:{},setups:[]};ctSave();BR=brBlank();brSave();route()}}
+function wipe(){if(prompt('Type DELETE to clear ALL jobs on this phone (traverses and levelling). A backup file is saved first.')==="DELETE"){backup();allTrav(()=>{D=blank();save()});PEG=pegBlank();allLev(()=>{LEV={lines:[],peg:PEG};levSave()});CT={known:{},setups:[]};ctSave();BR=brBlank();brSave();route()}}
 function travCSV(csv){
   const two=SETS===2,h=[["Inst St","Sighted To","Face","SetI D","SetI M","SetI S"].concat(two?["SetII D","SetII M","SetII S"]:[])];
   ST.forEach((s,i)=>{const st=D[s];OBS.forEach(([k,face,t],j)=>{const a=st.sets[0][k]||["","",""],b=st.sets[1][k]||["","",""];
