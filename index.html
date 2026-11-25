@@ -94,8 +94,7 @@ tr.badrow td{background:var(--badbg)}
 .toast.bad{background:var(--bad)}
 .hidden{display:none}
 .bookwrap{overflow-x:auto;margin:6px -16px 10px;padding:0 16px}.book{border-collapse:collapse;font-size:13px;white-space:nowrap}.book th,.book td{border:1px solid var(--line);padding:5px 6px;text-align:right}.book th{font-size:10px;text-align:center;background:var(--bg2)}.book td:first-child{position:sticky;left:0;background:var(--card);text-align:left;font-weight:800}.book tr.named td{background:var(--okbg)}.book tr.sum td{font-weight:900;background:var(--bg2)}.bookh{font-weight:900;margin:12px 0 4px}.lsticky{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;align-items:center;gap:10px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line)}.lsticky span{flex:1;font-size:14px;color:var(--mut)}.lsticky b{color:var(--ink);font-size:17px}.lsticky .btn{flex:none;padding:12px 18px}details.card summary{cursor:pointer;list-style:none}details.card summary::-webkit-details-marker{display:none}.bookhd{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}.bookhd label{font-size:12px;color:var(--mut);font-weight:700}.bookhd input{display:block;width:100%;margin-top:2px;font:inherit;font-size:15px;font-weight:700;padding:7px 8px;border:1.5px solid var(--line);border-radius:10px;background:var(--input);color:var(--ink)}
-.maker{display:flex;flex-direction:column;align-items:center;text-align:center;padding:12px 10px;margin-bottom:14px;border-radius:18px;background:var(--hero);color:#fff;box-shadow:var(--shadow)}.maker .mk1{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;opacity:.8;font-weight:800}.maker b{font-size:22px;font-weight:900;letter-spacing:-.2px}.maker .mk2{font-size:12px;opacity:.85;margin-top:2px}
-.hubhead{margin:4px 4px 14px}.hubhead h3{margin:0;font-size:24px;font-weight:900;letter-spacing:-.3px}.hubhead p{margin:4px 0 0;color:var(--mut);font-size:14px}
+.hubhead{margin:4px 4px 14px}.hubhead p.mkby{font-size:12px;margin-top:2px;opacity:.75}.hubhead h3{margin:0;font-size:24px;font-weight:900;letter-spacing:-.3px}.hubhead p{margin:4px 0 0;color:var(--mut);font-size:14px}
 .wcard{width:100%;display:flex;align-items:center;gap:14px;text-align:left;padding:16px;margin-bottom:12px;border:1px solid var(--line);border-radius:22px;background:var(--card);color:var(--ink);box-shadow:var(--shadow);transition:transform .12s}
 .wcard:active{transform:scale(.98)}
 .wic{flex:none;width:52px;height:52px;border-radius:16px;background:var(--hero);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900}
@@ -429,8 +428,7 @@ function renderHub(){
     <div class="wic">${icon}</div><div class="wtx"><b>${name}</b><small>${sub}</small>${prog!=null?`<div class="bar"><i style="width:${prog}%"></i></div>`:""}</div><span class="wgo">${href?"›":""}</span></button>`;
   const tsub=X=>`${X.S.done.length} / ${X.N} stations${X.tb?" · "+X.tb+" warning"+(X.tb>1?"s":""):X.S.err!=null?" · closed "+X.S.err+"″":""}`;
   app.innerHTML=`
-  <div class="maker"><span class="mk1">Made by</span><b>Gaurab KC</b><span class="mk2">Group 07 · Survey Camp 2083 · co-authored with Claude (Anthropic)</span></div>
-  <div class="hubhead"><h3>Today's work</h3><p>Tap a job. Every reading saves on this phone as you type.</p></div>
+  <div class="hubhead"><h3>Today's work</h3><p>Tap a job. Every reading saves on this phone as you type.</p><p class="mkby">Made by Gaurab KC · Group 07</p></div>
   ${work("trav","⌖","Major Traverse",tsub(MA),MA.tb?"bad":MA.S.done.length===MA.N?"ok":"",Math.round(100*MA.S.done.length/MA.N))}
   ${work("fly","〰","Unlinked Fly Levelling",lsub(LS.fly),LS.fly.lw||LS.fly.pc.ok===false?"bad":"",null)}
   ${work("lev","≋","Fly Levelling (traverse)",lsub(LS.lev),LS.lev.lw||LS.lev.pc.ok===false?"bad":"",null)}
