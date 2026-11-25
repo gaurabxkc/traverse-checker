@@ -440,7 +440,7 @@ function renderHub(){
   const grp=loadCfg("major").cfg.group;
   title.innerHTML=`Survey Camp<small>${grp?"Group "+esc(grp)+" · ":""}field checker</small>`;
   const prev=PK,MA=travStats("major"),MI=travStats("minor");useTrav(prev||"major",true);
-  const LS=allLev(()=>({pc:pegCalc(),lw:LEV.lines.reduce((n,L)=>n+levIssues(L).length,0),lc:LEV.lines.filter(L=>lineCalc(L).err!=null).length,n:LEV.lines.length}));
+  const LS=allLev(()=>({pc:pegCalc(),lw:LEV.lines.reduce((n,L)=>n+levIssues(L).length,0),lc:LEV.lines.map(levStatus).filter(v=>v!=null).length,n:LEV.lines.filter(L=>!(L.dir==="bw"&&pairOf(L))).length}));
   const lsub=X=>`${X.n} line${X.n===1?"":"s"}${X.lc?" · "+X.lc+" closed":""} · two peg ${X.pc.ok==null?"not done":X.pc.ok?"✓":"✗"}${X.lw?" · "+X.lw+" warning"+(X.lw>1?"s":""):""}`;
   const work=(href,icon,name,sub,state,prog)=>`<button class="wcard ${state}" ${href?`onclick="location.hash='${href}'"`:"disabled"}>
     <div class="wic">${icon}</div><div class="wtx"><b>${name}</b><small>${sub}</small>${prog!=null?`<div class="bar"><i style="width:${prog}%"></i></div>`:""}</div><span class="wgo">${href?"›":""}</span></button>`;

@@ -134,7 +134,8 @@ function prFlyRows(L,c,a,b,rl0){const rows=[];let sBS=0,sFS=0,sR=0,sF=0,sD=0;con
 const PR_FLYH=`<tr><th rowspan="2">Stations<br>Chainage</th><th colspan="3">BS</th><th rowspan="2">Mean<br>BS</th><th>S<sub>1</sub></th><th colspan="3">FS</th><th rowspan="2">Mean<br>FS</th><th>S<sub>2</sub></th><th rowspan="2">Rise<br>+</th><th rowspan="2">Fall<br>−</th><th rowspan="2">Elevation<br>(m)</th><th rowspan="2">Stadia<br>Interval<br>S=S<sub>1</sub>+S<sub>2</sub></th><th rowspan="2">Hz. Dst<br>(m)<br>S×100</th><th rowspan="2">Remarks</th></tr>
 <tr><th>Top</th><th>Mid</th><th>Bot</th><th>(T−B)</th><th>Top</th><th>Mid</th><th>Bot</th><th>(T−B)</th></tr>`;
 function prLevPages(k){const out=[];allLev(kk=>{if(kk!==k)return;
-  for(const L of LEV.lines){if(!L.setups.length)continue;const c=lineCalc(L),H=L.hdr||{},meta={obs:H.obs,rec:H.rec,inst:H.inst||"Auto level",date:H.date,wx:H.wx,temp:H.temp};
+  const order=[];for(const L of LEV.lines){const Q=pairOf(L);if(Q&&L.dir==="bw"&&Q.dir==="fw")continue;order.push(L);if(Q&&L.dir==="fw")order.push(Q)}
+  for(const L of order){if(!L.setups.length)continue;const c=lineCalc(L),H=L.hdr||{},meta={obs:H.obs,rec:H.rec,inst:H.inst||"Auto level",date:H.date,wx:H.wx,temp:H.temp};
     const n=L.setups.length;
     if(LP.book==="rf"||isMid(L)){ // format 15 rise and fall, split in pages of 22 rows
       const e=c.err!=null?c.err/1000:null,rws=[];
@@ -156,8 +157,10 @@ function prLevPages(k){const out=[];allLev(kk=>{if(kk!==k)return;
       const sum=lastP?`<tr class="b"><td>Sum</td><td></td><td></td><td></td><td>${prF3(r.sBS)}</td><td></td><td></td><td></td><td></td><td>${prF3(r.sFS)}</td><td></td><td>${prF3(r.sR)}</td><td>${prF3(r.sF)}</td><td></td><td></td><td>${r.sD.toFixed(1)}</td><td></td></tr>`:"";
       let below="";
       if(lastP){below=`<table class="bk sm"><tr><th colspan="2">Arithmetic check</th></tr><tr><td class="l">|ΣBS − ΣFS|</td><td>${prF3(Math.abs(r.sBS-r.sFS))}</td></tr><tr><td class="l">|ΣRise − ΣFall|</td><td>${prF3(Math.abs(r.sR-r.sF))}</td></tr><tr><td class="l">|Last RL − First RL|</td><td>${r.last!=null&&r.rl0!=null?prF3(Math.abs(r.last-r.rl0)):""}</td></tr><tr><td class="l">Distance</td><td>${r.sD.toFixed(1)} m</td></tr></table>`;
-        if(si===res.length-1){let ec="";
-          if(res.length===2&&c.rl0!=null&&c.rows[n-1].rlF!=null){const f=res[0],g=res[1],da=Math.abs(f.sR-f.sF),db=Math.abs(g.sR-g.sF),e=Math.round(1000*(da-db)),K=(f.sD+g.sD)/1000,perm=24*Math.sqrt(K),nm=L.setups[turn].fs.p,rl=f.sR>f.sF?c.rl0+(da+db)/2:c.rl0-(da+db)/2;
+        if(si===res.length-1){let ec="";const Q=pairOf(L);
+          if(Q&&L.dir==="bw"){const pc=pairCalc(Q,L);if(pc.done)ec=`<table class="bk sm"><tr><th colspan="2">Error computation (FW + BW)</th></tr><tr><td class="l">Error of closure = |ΣR−ΣF|fwd − |ΣR−ΣF|bwd</td><td>${prF3(pc.a)} − ${prF3(pc.b)} = ${pc.e>0?"+":""}${pc.e} mm</td></tr><tr><td class="l">K = (${pc.cF.dist.toFixed(1)} + ${pc.cB.dist.toFixed(1)}) / 1000</td><td>${pc.K.toFixed(4)} km</td></tr><tr><td class="l">Permissible 24√K</td><td>±${pc.perm.toFixed(2)} mm ${pc.ok?"OK":"EXCEEDS"}</td></tr><tr><td class="l">RL of ${prE(pc.endP)} = RL of ${prE(Q.start)} ${pc.dF>=0?"+":"−"} mean</td><td>${prF3(pc.cF.rl0)} ${pc.dF>=0?"+":"−"} (${prF3(pc.a)} + ${prF3(pc.b)})/2 = ${prF3(pc.rlEnd)} m</td></tr></table>`}
+          else if(Q&&L.dir==="fw"){}
+          else if(res.length===2&&c.rl0!=null&&c.rows[n-1].rlF!=null){const f=res[0],g=res[1],da=Math.abs(f.sR-f.sF),db=Math.abs(g.sR-g.sF),e=Math.round(1000*(da-db)),K=(f.sD+g.sD)/1000,perm=24*Math.sqrt(K),nm=L.setups[turn].fs.p,rl=f.sR>f.sF?c.rl0+(da+db)/2:c.rl0-(da+db)/2;
             ec=`<table class="bk sm"><tr><th colspan="2">Error computation</th></tr><tr><td class="l">Error of closure</td><td>${prF3(da)} − ${prF3(db)} = ${e>0?"+":""}${e} mm</td></tr><tr><td class="l">Distance K</td><td>${K.toFixed(4)} km</td></tr><tr><td class="l">Permissible 24√K</td><td>±${perm.toFixed(2)} mm ${Math.abs(e)<=perm?"OK":"EXCEEDS"}</td></tr><tr><td class="l">RL of ${prE(nm)} (mean)</td><td>${prF3(rl)} m</td></tr></table>`}
           else if(c.err!=null)ec=`<table class="bk sm"><tr><th colspan="2">Error computation</th></tr><tr><td class="l">Closing error e</td><td>${c.err>0?"+":""}${c.err} mm</td></tr><tr><td class="l">K</td><td>${c.K.toFixed(4)} km</td></tr><tr><td class="l">Permissible 24√K</td><td>±${c.perm.toFixed(2)} mm ${Math.abs(c.err)<=c.perm?"OK":"EXCEEDS"}</td></tr></table>`;
           below+=ec}

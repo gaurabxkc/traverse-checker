@@ -113,7 +113,7 @@ function renderBR(h){
   const sol=brSolve(),rc=recCalc(sol),hy=hydCalc(),is=brIssues(sol);
   const nb=BR.bases.filter(b=>baseCalc(b)).length,na=BR.obs.filter(o=>obsCalc(o).done).length,nt=sol.tc.filter(T=>T.ready).length;
   const lp=(()=>{const x=allLev(k=>k==="bloop"?LEV.lines.map(L=>{const c=lineCalc(L);return c.err!=null&&c.perm!=null?Math.abs(c.err)<=c.perm:null}):null).bloop||[];return x})();
-  const fl=(()=>{const x=allLev(k=>k==="bfly"?LEV.lines.map(L=>{const c=lineCalc(L);return c.err!=null&&c.perm!=null?Math.abs(c.err)<=c.perm:null}):null).bfly||[];return x})();
+  const fl=(()=>{const x=allLev(k=>k==="bfly"?LEV.lines.map(levStatus).filter(v=>v!==undefined):null).bfly||[];return x})();
   const step=(n,href,name,sub,state)=>`<button class="wcard ${state}" onclick="location.hash='${href}'"><div class="wic" style="font-size:20px">${n}</div><div class="wtx"><b>${name}</b><small>${sub}</small></div><span class="wgo">›</span></button>`;
   const jobN=j=>CT.setups.filter(S=>S.job===j),jobTxt=j=>{const m=jobN(j),n=m.reduce((a,S)=>a+S.pts.length,0),w=m.reduce((a,S)=>a+ctIssues(S).length,0);return{t:`${m.length} setup${m.length===1?"":"s"} · ${n} point${n===1?"":"s"}${w?" · "+w+" warning"+(w>1?"s":""):""}`,s:w?"bad":n?"ok":""}};
   const D=jobTxt("det"),LS=jobTxt("ls"),XS=jobTxt("xs"),sec=t=>`<p class="note" style="margin:16px 4px 8px;font-weight:800;text-transform:uppercase;letter-spacing:1px">${t}</p>`;
@@ -121,7 +121,7 @@ function renderBR(h){
   <div class="hubhead"><h3>Bridge site</h3><p>Axis ${esc(BR.axis.join(""))} crosses the river. Tap a task.</p></div>
   ${BR_LAYOUT.obs.every(([at,bs,fs])=>findObs(at,bs,fs))?"":`<div class="card"><h2>Start here</h2><p class="note" style="margin:0">Adds our layout: base lines AC and BD, major triangles ABC and ABD (solid, 2 sets), minor triangles ADE, DEF, EFG (dotted, 1 set) and all 15 angles in reading order.</p><div class="btns" style="margin-top:10px"><button class="btn pri" onclick="brSetup()">Set up our layout</button></div></div>`}
   ${sec("Control")}
-  ${step(1,"bfly","Fly levelling BM → "+esc(BR.axis[0]),fl.length?`${fl.length} line${fl.length>1?"s":""} · ${fl.filter(x=>x===true).length} closed OK`:"3-wire · there and back · ±24√K",fl.some(x=>x===false)?"bad":fl.some(x=>x)?"ok":"")}
+  ${step(1,"bfly","Fly levelling BM → "+esc(BR.axis[0]),fl.length?`${fl.length} run${fl.length>1?"s":""} · ${fl.filter(x=>x===true).length} closed OK`:"3-wire · FW and BW · ±24√K",fl.some(x=>x===false)?"bad":fl.some(x=>x)?"ok":"")}
   ${step(2,"br/base","Base lines",`${nb} measured · tape 1:2000 · EDM 1:5000`,BR.bases.some(b=>{const c=baseCalc(b);return c&&c.bad})?"bad":nb?"ok":"")}
   ${step(3,"br/ang","Angles",`${na} / ${BR.obs.length} done · base 2 sets, others 1 set`,BR.obs.some(o=>{const c=obsCalc(o);return c.setBad||c.s.some(s=>s&&s.faceBad)})?"bad":na&&na===BR.obs.length?"ok":"")}
   ${step(4,"br/tri","Triangles · axis length",sol.axMean!=null?`${esc(BR.axis.join(""))} = ${sol.axMean.toFixed(3)} m${sol.axPrec!=null?" · 1:"+(sol.axPrec===Infinity?"∞":Math.round(sol.axPrec)):""}`:`${nt} / ${BR.tris.length} triangles closed`,sol.tc.some(T=>T.ready&&(T.bad||T.ill.some(x=>x)))||sol.axBad?"bad":sol.axPrec!=null?"ok":"")}
