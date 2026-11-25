@@ -268,7 +268,7 @@ function prCover(list){const rows=list.map(x=>`<tr><td>${x.from===x.to?x.from:x.
   return `<section class="pg cover"><div class="pbody"><div class="puni">Tribhuvan University<br>Institute of Engineering<br>Pulchowk Campus<br><span class="pdept">Department of Civil Engineering</span><br>Survey Instruction Committee</div>
   <h1>Survey Camp Field Book</h1><p class="csub">Group ${prE(prGroup()||"…")}</p>
   <table class="bk ctoc"><tr><th>Pages</th><th>Sheet</th></tr>${rows}</table>
-  <p class="credit">Printed from the Survey Camp field checker · app by Gaurab KC, co-authored with Claude (Anthropic)</p></div><div class="pfoot"><span></span><span>Page No: <i class="pno"></i></span></div></section>`}
+  <p class="credit">Printed from the Survey Camp field checker · made by Gaurab KC (Group 07), co-authored with Claude (Anthropic)</p></div><div class="pfoot"><span></span><span>Page No: <i class="pno"></i></span></div></section>`}
 function prBuild(keys){const pages=[],skipped=[];
   for(const[k,name,avail,make]of PR_BOOKS){if(!keys.includes(k)||!avail())continue;
     for(const p of make()){if(p.skip){skipped.push(name+" Gale's table: "+p.skip);continue}pages.push(p)}}
@@ -298,7 +298,7 @@ function renderPrint(h){backTo="";homeBtn.textContent="◀ Home";homeBtn.classLi
   ${ctl}
   <div class="btns" style="margin-bottom:14px"><button class="btn pri" onclick="prPrint()">🖨 Print / Save as PDF</button></div>
   <p class="note" id="prInfo"></p><div id="prv" class="pb prv"></div>
-  <p class="note" style="margin-top:18px;text-align:center">App by Gaurab KC · co-authored with Claude (Anthropic)</p>`;
+  <p class="note" style="margin-top:18px;text-align:center">Made by Gaurab KC (Group 07) · co-authored with Claude (Anthropic)</p>`;
   prRefresh()}
 function prCtl(k,p,f,v){const o=PR.ctl[k][p]=PR.ctl[k][p]||{};o[f]=v;prSave();clearTimeout(prCtl.t);prCtl.t=setTimeout(()=>renderPrint("print"),600)}
 function prRefresh(){const w=document.getElementById("prv");if(!w)return;const keys=PR_BOOKS.filter(([k,,a])=>PR.pick[k]&&(()=>{try{return a()}catch(e){return false}})()).map(b=>b[0]);
