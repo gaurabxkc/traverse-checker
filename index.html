@@ -94,13 +94,14 @@ tr.badrow td{background:var(--badbg)}
 .toast.bad{background:var(--bad)}
 .hidden{display:none}
 .bookwrap{overflow-x:auto;margin:6px -16px 10px;padding:0 16px}.book{border-collapse:collapse;font-size:13px;white-space:nowrap}.book th,.book td{border:1px solid var(--line);padding:5px 6px;text-align:right}.book th{font-size:10px;text-align:center;background:var(--bg2)}.book td:first-child{position:sticky;left:0;background:var(--card);text-align:left;font-weight:800}.book tr.named td{background:var(--okbg)}.book tr.sum td{font-weight:900;background:var(--bg2)}.bookh{font-weight:900;margin:12px 0 4px}.lsticky{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;align-items:center;gap:10px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line)}.lsticky span{flex:1;font-size:14px;color:var(--mut)}.lsticky b{color:var(--ink);font-size:17px}.lsticky .btn{flex:none;padding:12px 18px}details.card summary{cursor:pointer;list-style:none}details.card summary::-webkit-details-marker{display:none}.bookhd{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}.bookhd label{font-size:12px;color:var(--mut);font-weight:700}.bookhd input{display:block;width:100%;margin-top:2px;font:inherit;font-size:15px;font-weight:700;padding:7px 8px;border:1.5px solid var(--line);border-radius:10px;background:var(--input);color:var(--ink)}
-.hubhead{margin:4px 4px 14px}.hubhead p.mkby{font-size:14px;margin-top:6px;color:var(--acc);font-weight:700}.hubhead p.mkby .cl{width:15px;height:15px;vertical-align:-2px;margin:0 3px 0 1px}.hubhead p.mkby a{color:inherit;font-weight:600;font-size:13px;text-decoration:none}.hubhead h3{margin:0;font-size:24px;font-weight:900;letter-spacing:-.3px}.hubhead p{margin:4px 0 0;color:var(--mut);font-size:14px}
+.accs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.acc{display:flex;flex-direction:column;align-items:center;gap:5px;background:none;border:0;padding:4px;color:var(--ink);font-size:12px;font-weight:700}.acc i{width:40px;height:40px;border-radius:50%;box-shadow:var(--shadow);border:3px solid transparent}.acc.on i{border-color:var(--ink)}
+.hubhead{margin:4px 4px 14px}.hubhead p.mkby{font-size:14px;margin-top:6px;color:var(--acc);font-weight:700}.hubhead p.mkby .cl{width:20px;height:13px;vertical-align:-1px;margin:0 4px 0 2px}.hubhead p.mkby a{color:inherit;font-weight:600;font-size:13px;text-decoration:none}.hubhead h3{margin:0;font-size:24px;font-weight:900;letter-spacing:-.3px}.hubhead p{margin:4px 0 0;color:var(--mut);font-size:14px}
 .wcard{width:100%;display:flex;align-items:center;gap:14px;text-align:left;padding:16px;margin-bottom:12px;border:1px solid var(--line);border-radius:22px;background:var(--card);color:var(--ink);box-shadow:var(--shadow);transition:transform .12s}
 .wcard:active{transform:scale(.98)}
 .wic{flex:none;width:52px;height:52px;border-radius:16px;background:var(--hero);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900}
 .wtx{flex:1;min-width:0}.wtx b{display:block;font-size:18px;font-weight:900}.wtx small{display:block;color:var(--mut);font-size:13px;margin-top:2px}
 .wgo{font-size:30px;color:var(--mut);font-weight:300}
-.bar{height:6px;border-radius:99px;background:var(--bg2);margin-top:8px;overflow:hidden}.bar i{display:block;height:100%;background:linear-gradient(90deg,#facc15,#14b8a6);border-radius:99px}
+.bar{height:6px;border-radius:99px;background:var(--bg2);margin-top:8px;overflow:hidden}.bar i{display:block;height:100%;background:linear-gradient(90deg,#facc15,var(--acc2));border-radius:99px}
 .wcard.bad{border:2px solid var(--bad);background:var(--badbg)}.wcard.ok{border:2px solid var(--ok)}
 .wcard.soon{opacity:.5;box-shadow:none}.wcard.soon .wic{background:var(--bg2);color:var(--mut)}
 .tmb{display:flex;gap:4px}.tmb input{width:72px;font-size:19px;font-weight:700;padding:9px 2px;text-align:center;border:1.5px solid var(--line);border-radius:12px;background:var(--input);color:var(--ink)}
@@ -375,6 +376,21 @@ function pegNo(){return esc(String(loadCfg("major").cfg.group||"").replace(/^0+/
 function sysFont(){try{return localStorage.getItem("trav-font")==="system"}catch(e){return false}}
 function applyFont(){document.body.classList.toggle("sysfont",sysFont())}
 function setFont(sys){try{localStorage.setItem("trav-font",sys?"system":"app")}catch(e){}applyFont();route()}
+/* accent colour themes: [light acc, light acc2, light hero stops], [dark acc, dark acc2, dark hero stops] */
+const ACCENTS={teal:["Teal",["#0f766e","#14b8a6",["#0b3d36","#0f766e","#14b8a6"]],["#2dd4bf","#5eead4",["#042f2a","#0b5e56","#0f9488"]]],
+  blue:["Blue",["#1d4ed8","#3b82f6",["#172554","#1d4ed8","#3b82f6"]],["#60a5fa","#93c5fd",["#0b1a3d","#1e3a8a","#2563eb"]]],
+  indigo:["Indigo",["#4338ca","#6366f1",["#1e1b4b","#4338ca","#6366f1"]],["#818cf8","#a5b4fc",["#15123a","#312e81","#4f46e5"]]],
+  purple:["Purple",["#7e22ce","#a855f7",["#3b0764","#7e22ce","#a855f7"]],["#c084fc","#d8b4fe",["#2a0848","#581c87","#9333ea"]]],
+  rose:["Rose",["#be123c","#f43f5e",["#4c0519","#be123c","#f43f5e"]],["#fb7185","#fda4af",["#3b0414","#881337","#e11d48"]]],
+  orange:["Orange",["#c2410c","#f97316",["#431407","#c2410c","#f97316"]],["#fb923c","#fdba74",["#3a1206","#9a3412","#ea580c"]]],
+  green:["Green",["#15803d","#22c55e",["#052e16","#15803d","#22c55e"]],["#4ade80","#86efac",["#03240f","#166534","#16a34a"]]],
+  slate:["Slate",["#334155","#64748b",["#0f172a","#334155","#64748b"]],["#94a3b8","#cbd5e1",["#0b1220","#1e293b","#475569"]]]};
+function accKey(){try{const k=localStorage.getItem("trav-accent");return ACCENTS[k]?k:"teal"}catch(e){return "teal"}}
+function applyAccent(){const A=ACCENTS[accKey()],dark=matchMedia("(prefers-color-scheme: dark)").matches,v=A[dark?2:1],r=document.documentElement.style;
+  r.setProperty("--acc",v[0]);r.setProperty("--acc2",v[1]);r.setProperty("--hero",`linear-gradient(135deg,${v[2][0]} 0%,${v[2][1]} 55%,${v[2][2]} 100%)`);
+  const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=A[1][1]}
+function setAccent(k){try{localStorage.setItem("trav-accent",k)}catch(e){}applyAccent();route()}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",applyAccent);
 function stepM(d){const el=document.getElementById("cfgM");el.textContent=Math.max(1,Math.min(60,+el.textContent+d))}
 function setType(t){document.getElementById("cfgType").value=t;document.querySelectorAll("[data-type]").forEach(b=>b.classList.toggle("on",b.dataset.type===t));
   document.getElementById("cfgLink").classList.toggle("hidden",t!=="link");document.getElementById("cfgLinkB").classList.toggle("hidden",t!=="link");document.getElementById("cfgLoop").classList.toggle("hidden",t!=="loop")}
@@ -430,7 +446,7 @@ function renderHub(){
     <div class="wic">${icon}</div><div class="wtx"><b>${name}</b><small>${sub}</small>${prog!=null?`<div class="bar"><i style="width:${prog}%"></i></div>`:""}</div><span class="wgo">${href?"›":""}</span></button>`;
   const tsub=X=>`${X.S.done.length} / ${X.N} stations${X.tb?" · "+X.tb+" warning"+(X.tb>1?"s":""):X.S.err!=null?" · closed "+X.S.err+"″":""}`;
   app.innerHTML=`
-  <div class="hubhead"><h3>Today's work</h3><p>Tap a job. Every reading saves on this phone as you type.</p><p class="mkby">Made by Gaurab KC with <svg class="cl" viewBox="0 0 24 24" aria-hidden="true"><g stroke="#D97757" stroke-width="2.6" stroke-linecap="round"><line x1="12" y1="12" x2="22.00" y2="12.00"/><line x1="12" y1="12" x2="20.66" y2="17.00"/><line x1="12" y1="12" x2="17.00" y2="20.66"/><line x1="12" y1="12" x2="12.00" y2="22.00"/><line x1="12" y1="12" x2="7.00" y2="20.66"/><line x1="12" y1="12" x2="3.34" y2="17.00"/><line x1="12" y1="12" x2="2.00" y2="12.00"/><line x1="12" y1="12" x2="3.34" y2="7.00"/><line x1="12" y1="12" x2="7.00" y2="3.34"/><line x1="12" y1="12" x2="12.00" y2="2.00"/><line x1="12" y1="12" x2="17.00" y2="3.34"/><line x1="12" y1="12" x2="20.66" y2="7.00"/></g></svg>Claude<br><a href="mailto:081bce068.gaurab@pcampus.edu.np">081bce068.gaurab@pcampus.edu.np</a></p></div>
+  <div class="hubhead"><h3>Today's work</h3><p>Tap a job. Every reading saves on this phone as you type.</p><p class="mkby">Made by Gaurab KC with <svg class="cl" viewBox="0 0 22 14" aria-hidden="true"><g fill="#D97757"><rect x="4" y="0" width="14" height="10"/><rect x="1" y="4" width="3" height="3"/><rect x="18" y="4" width="3" height="3"/><rect x="5" y="10" width="2" height="3"/><rect x="8" y="10" width="2" height="3"/><rect x="12" y="10" width="2" height="3"/><rect x="15" y="10" width="2" height="3"/></g><g fill="#1a1a1a"><rect x="7" y="2" width="2" height="3"/><rect x="13" y="2" width="2" height="3"/></g></svg>Claude Code<br><a href="mailto:081bce068.gaurab@pcampus.edu.np">081bce068.gaurab@pcampus.edu.np</a></p></div>
   ${work("trav","⌖","Major Traverse",tsub(MA),MA.tb?"bad":MA.S.done.length===MA.N?"ok":"",Math.round(100*MA.S.done.length/MA.N))}
   ${work("fly","〰","Unlinked Fly Levelling",lsub(LS.fly),LS.fly.lw||LS.fly.pc.ok===false?"bad":"",null)}
   ${work("mlev","⥁","Minor Loop Levelling",`${LS.mlev.n} loop${LS.mlev.n===1?"":"s"}${LS.mlev.lc?" · "+LS.mlev.lc+" closed":""}${LS.mlev.lw?" · "+LS.mlev.lw+" warning"+(LS.mlev.lw>1?"s":""):" · middle hair · 0.6–3.0 m"}`,LS.mlev.lw?"bad":"",null)}
@@ -451,7 +467,8 @@ function renderHub(){
     <div class="btns" style="margin-top:10px"><button class="btn" onclick="wipe()">Clear ALL jobs…</button></div></div>
   <div class="card"><h2>Font</h2>
     <div class="seg"><button class="${sysFont()?"":"on"}" onclick="setFont(false)">App (Inter)</button><button class="${sysFont()?"on":""}" style="font-family:system-ui,Roboto,sans-serif" onclick="setFont(true)">System</button></div></div>
-  <p class="note" style="text-align:center;margin:4px 0 10px">Made by Gaurab KC (Group 07) · co-authored with Claude (Anthropic)</p>`;
+  <div class="card"><h2>Accent colour</h2><div class="accs">${Object.entries(ACCENTS).map(([k,A])=>`<button class="acc${accKey()===k?" on":""}" onclick="setAccent('${k}')" aria-label="${A[0]}"><i style="background:linear-gradient(135deg,${A[1][2][1]},${A[1][2][2]})"></i><span>${A[0]}</span></button>`).join("")}</div></div>
+  <p class="note" style="text-align:center;margin:4px 0 10px">Made by Gaurab KC with Claude Code</p>`;
 }
 function renderHome(){
   title.innerHTML=`${PROF.name}<small>${PK==="major"&&CFG.group?"Group "+esc(CFG.group)+" · ":""}${PROF.ready&&PROF.configured?routeTxt():"not set up yet"}</small>`;homeBtn.classList.remove("hidden");
@@ -633,7 +650,7 @@ function exportCSV(){
   download(blobFile(t.major+(t.minor?"\n\n"+t.minor:"")+(a=>a.fly+a.lev+a.mlev+a.bfly+a.bloop)(allLev(k=>levCSV(csv)?"\n\n"+LP.name.toUpperCase()+levCSV(csv):""))+ctCSV(csv)+brCSV(csv),`survey-camp-excel-${stamp()}.csv`,"text/csv"));
 }
 if("serviceWorker"in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js");
-applyFont();route();
+applyFont();applyAccent();route();
 </script>
 </body>
 </html>
