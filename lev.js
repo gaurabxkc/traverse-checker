@@ -45,7 +45,14 @@ function w3(a,mid){ // [T,M,B] -> mean (template: ROUND(AVERAGE,3)), stadia, che
   return{t,m,b,mean,s,dist:s*100,chk,rng:rngOf(m),order:t>=m&&m>=b,bad:Math.abs(chk)>LIM_LEV.wire+1e-9||!(t>=m&&m>=b)}}
 function lineCalc(L){
   const mid=isMid(L);let rl0=num(L.rl);let rlFrom=rl0!=null?"typed":null;if(rl0==null&&L.dir==="bw"){const F=pairOf(L);if(F&&F.dir==="fw"){const e=lineCalc(F).end;if(e!=null){rl0=e;rlFrom="FW end"}}}
-  if(rl0==null&&L.start){const k=knownRL(L.start,L);if(k){rl0=k.rl;rlFrom=k.line}}let rl=rl0,sBS=0,sFS=0,sR=0,sF=0,dist=0;const rows=[];
+  if(rl0==null&&L.start){const k=knownRL(L.start,L);if(k){rl0=k.rl;rlFrom=k.line}}
+  // Start RL unknown: back-compute it from a named point on the way whose RL another job carried (e.g. A on a C-A-C loop).
+  if(rl0==null){let cum=0;for(const u of L.setups){const B=w3(u.bs.r,mid),F=w3(u.fs.r,mid);if(!B||!F)break;cum+=B.mean-F.mean;const p=String(u.fs.p||"").trim();
+    if(p&&!/^TP/i.test(p)&&p!==String(L.start||"").trim()){const k=knownRL(p,L);if(k){rl0=r3(k.rl-cum);rlFrom=k.line+", via "+p;break}}}}
+  // Still unknown but the line closes on its start: check the closure with the start taken as 0.000 (RLs not shared with other jobs).
+  const lastP=L.setups.length?String(L.setups[L.setups.length-1].fs.p||"").trim():"";
+  if(rl0==null&&lastP&&lastP===String(L.start||"").trim()){rl0=0;rlFrom="assumed"}
+  let rl=rl0,sBS=0,sFS=0,sR=0,sF=0,dist=0;const rows=[];
   L.setups.forEach((u,i)=>{
     const B=w3(u.bs.r,mid),F=w3(u.fs.r,mid);let rise=null,rlF=null,bal=null;
     if(B&&F){rise=r3(B.mean-F.mean);if(rl!=null){rlF=r3(rl+rise)}sBS+=B.mean;sFS+=F.mean;if(rise>=0)sR+=rise;else sF+=-rise}
@@ -61,7 +68,7 @@ function lineCalc(L){
   // Named points (not TP): adjust by distance, RL_adj = RL - e x (distance to point / total distance).
   // At the turnaround of a there-and-back line this equals the template's mean of forward and backward.
   const tbm=[];
-  if(done&&known!=null&&rl0!=null){const eM=end-known;let cum=0;
+  if(done&&known!=null&&rl0!=null&&rlFrom!=="assumed"){const eM=end-known;let cum=0;
     L.setups.forEach((u,i)=>{const r=rows[i];cum+=(r.B?r.B.dist:0)+(r.F?r.F.dist:0);const p=u.fs.p;
       if(i===L.setups.length-1||!p||/^TP/i.test(p)||p===L.start)return;
       const share=mid||!dist?(i+1)/L.setups.length:cum/dist,adj=r3(r.rlF-eM*share),x=tbm.find(q=>q.p===p);
@@ -205,7 +212,7 @@ function renderLine(L){if(L.dir==="bw"&&!L.start){const F=pairOf(L);if(F&&F.setu
     <div class="row"><span>Name</span><input class="cfgin" data-f="name" value="${esc(L.name||"")}"></div>
     <div class="row"><span>Start point (BM or station)</span><input class="cfgin" data-f="start" value="${esc(L.start||"")}"></div>
     <div class="row"><span>RL of start (m)</span><input class="cfgin" inputmode="decimal" data-f="rl" value="${esc(L.rl||"")}" placeholder="${(()=>{const c=lineCalc(L);return c.rl0!=null&&!num(L.rl)&&num(L.rl)!==0?c.rl0.toFixed(3)+" auto":"type RL"})()}"></div>
-    ${(()=>{const c=lineCalc(L);return num(L.rl)==null&&c.rl0!=null?`<p class="note">Start RL ${c.rl0.toFixed(3)} is linked automatically from “${esc(c.rlFrom)}” (same name ${esc(L.start)}). Type a value only to override.</p>`:num(L.rl)==null?`<p class="note">No other job has an RL for “${esc(L.start||"?")}” yet. Type it, or name the start exactly like the BM in the job that carried its RL.</p>`:""})()}
+    ${(()=>{const c=lineCalc(L);return num(L.rl)==null&&c.rlFrom==="assumed"?`<p class="note">No job has an RL for “${esc(L.start||"?")}” or any named point on this loop yet, so the closure is checked with ${esc(L.start||"start")} = 0.000. Name a point exactly like a BM with a known RL (e.g. the bridge axis end) to get real RLs.</p>`:num(L.rl)==null&&c.rl0!=null&&/, via /.test(c.rlFrom||"")?`<p class="note">Start RL ${c.rl0.toFixed(3)} is back-computed from “${esc(c.rlFrom)}”. Type a value only to override.</p>`:num(L.rl)==null&&c.rl0!=null?`<p class="note">Start RL ${c.rl0.toFixed(3)} is linked automatically from “${esc(c.rlFrom)}” (same name ${esc(L.start)}). Type a value only to override.</p>`:num(L.rl)==null?`<p class="note">No other job has an RL for “${esc(L.start||"?")}” yet. Type it, or name the start exactly like the BM in the job that carried its RL.</p>`:""})()}
     ${LP.mid?"":`<div class="row"><span>Readings</span><div class="seg" style="width:210px"><button class="${L.mode!=="mid"?"on":""}" onclick="setLevMode('3w')">3-wire</button><button class="${L.mode==="mid"?"on":""}" onclick="setLevMode('mid')">Middle only</button></div></div>`}
     ${isMid(L)?`<div class="row"><span>Loop length K (km)</span><input class="cfgin" inputmode="decimal" data-f="kKm" value="${esc(L.kKm||"")}" placeholder="${LK==="bloop"?"auto from bridge":"auto from traverse"}"></div><p class="note">Middle hair only: no stadia, so K comes from the ${LK==="bloop"?"bridge triangulation distances":"traverse leg lengths"} between the named stations (leave blank) or type it. Error is spread equally over the setups.</p>`:""}
     <div class="row"><span>Close on other BM</span><input class="cfgin" data-f="closeP" value="${esc(L.closeP||"")}" placeholder="(blank = start)"></div>
