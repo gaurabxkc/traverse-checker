@@ -241,6 +241,10 @@ function renderRoadLv(){backTo="road";homeBtn.textContent="◀ Road";
   bind("[data-xr]",el=>{clean(el);V.items[+el.dataset.xr][el.dataset.s][+el.dataset.j].r=el.value});
   bind("[data-cp]",el=>{const it=V.items[+el.dataset.cp],key=el.dataset.k;if(key==="p"){el.value=el.value.toUpperCase();it.p=el.value.trim()}else{clean(el);it[key]=el.value}});
   app.querySelectorAll('[data-cp][data-k="bs"]').forEach(el=>el.addEventListener("change",()=>renderRoadLv()));
+  // after a reading with 3 decimals (1.524), jump to the next reading box
+  const RDS=Array.from(app.querySelectorAll('#rbs,[data-xl],[data-xr],[data-cp][data-k="fs"],[data-cp][data-k="bs"]'));RDS.forEach((el,i)=>{el.dataset.rdi=i;el.setAttribute("enterkeyhint","next")});
+  RDS.forEach((el,i)=>el.addEventListener("input",()=>{if(!/^\d+\.\d{3}$/.test(el.value)||i+1>=RDS.length)return;const sel=`[data-rdi="${i+1}"]`;RDS[i+1].focus();
+    const t=app.querySelector(sel);if(t&&document.activeElement!==t)t.focus();if(t)t.scrollIntoView({block:"center"})}));
   bind("#rbm",el=>{el.value=el.value.toUpperCase();V.bm=el.value.trim()});
   bind("#rrl",el=>{V.rl=el.value.replace(/[^\d.\-]/g,"")});bind("#rbs",el=>{clean(el);V.bs=el.value});
   bind("#rch0",el=>{clean(el);V.ch0=el.value});app.querySelectorAll("#rch0,#rbm").forEach(el=>el.addEventListener("change",()=>renderRoadLv()));
