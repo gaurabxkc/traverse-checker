@@ -5,10 +5,10 @@
    "Profile Levelling" (format 14): HI method, L-section and cross-section readings in one book, closed on a known RL (e.g. bridge A), ±24√K.
    Norms: guideline road alignment items 4-17. ===== */
 const RD_KEY="road-v1";
-const RD_LIM={grade:12,rMin:15,dMax:90,dSet:3,xs:10,k:24,lo:0.6,hi:3.0,gap:5};
+const RD_LIM={grade:12,rMin:15,dMax:90,dSet:3,xs:10,k:24,lo:0.6,hi:3.0,gap:5,near:3};
 let RD;
 function rdBlank(){return{start:{p:"IP0",ch:"0",brg:["","",""],N:"",E:""},ips:[],peg:"15",
-  lv:{bm:"",rl:"",bs:"",closeRl:"",kKm:"",items:[]}}}
+  lv:{bm:"",rl:"",bs:"",ch0:"",closeRl:"",kKm:"",items:[]}}}
 function rdLoad(){try{RD=JSON.parse(localStorage.getItem(RD_KEY))}catch(e){RD=null}const b=rdBlank();if(!RD||!Array.isArray(RD.ips))RD=b;
   for(const k in b)if(RD[k]==null)RD[k]=b[k];for(const k in b.lv)if(RD.lv[k]==null)RD.lv[k]=b.lv[k];for(const k in b.start)if(RD.start[k]==null)RD.start[k]=b.start[k]}
 function rdSave(){try{localStorage.setItem(RD_KEY,JSON.stringify(RD));localStorage.setItem(TS_KEY,new Date().toISOString())}catch(e){alert("Could not save on this phone! Make a backup now.")}}
@@ -96,8 +96,8 @@ function rdLvIssues(L,pegs){const o=[];
     if(mx(it.L)<RD_LIM.xs-1e-9||mx(it.R)<RD_LIM.xs-1e-9)o.push(`Ch ${rdF(bNum(it.ch))}: cross section must reach ${RD_LIM.xs} m each side (L ${mx(it.L)} m, R ${mx(it.R)} m)`)});
   const cl=L.rows.filter(r=>r.t==="is"&&r.side==="C"&&r.ch!=null&&r.crl!=null).sort((a,b)=>a.ch-b.ch);
   for(let i=1;i<cl.length;i++){const dc=cl[i].ch-cl[i-1].ch;if(dc>0.5){const g=(cl[i].crl-cl[i-1].crl)/dc*100;if(Math.abs(g)>RD_LIM.grade)o.push(`Ground grade ${g.toFixed(1)}% between ch ${rdF(cl[i-1].ch,1)} and ${rdF(cl[i].ch,1)} (> ${RD_LIM.grade}%: check the alignment)`)}}
-  if(pegs&&pegs.length){const have=RD.lv.items.filter(it=>it.k==="x").map(it=>bNum(it.ch)).filter(x=>x!=null);const last=Math.max(-1,...have);
-    const miss=pegs.filter(q=>q.ch<=last+1e-6&&!have.some(c=>Math.abs(c-q.ch)<0.05)).map(q=>rdF(q.ch,q.ch%1?3:0));if(miss.length)o.push(`No section yet at ch ${miss.join(", ")}`)}
+  if(pegs&&pegs.length){const have=rdHave();if(have.length){const lo=Math.min(...have),hi=Math.max(...have);
+    const miss=pegs.filter(q=>q.ch>=lo-1e-6&&q.ch<=hi+1e-6&&!rdCovered(q,have)).map(q=>rdF(q.ch,q.ch%1?3:0));if(miss.length)o.push(`No section yet at ch ${miss.join(", ")}`)}}
   return o}
 function rdIssues(){const C=rdCalc();const o=[];C.rows.forEach(r=>r.w.forEach(([s,t])=>{if(s==="bad")o.push(`${r.ip.p||"IP"}: ${t}`)}));return o}
 
@@ -210,7 +210,7 @@ function renderRoadLv(){backTo="road";homeBtn.textContent="◀ Road";
   const rin=(a,v,ph)=>`<input class="cfgin" style="width:86px" inputmode="decimal" ${a} value="${esc(v||"")}" placeholder="${ph||""}">`;
   const side=(it,ii,s)=>`${it[s].map((q,j)=>`<div class="row"><span>${s==="L"?"Left":"Right"} ${rin(`data-xo="${ii}" data-s="${s}" data-j="${j}"`,q.o,"m")} m</span><span>${rin(`data-xr="${ii}" data-s="${s}" data-j="${j}"`,q.r,"reading")} <small class="note" id="rlv_${ii}_${s}${j}"></small></span></div>`).join("")}
     <div class="btns" style="margin:2px 0 6px"><button class="btn" onclick="rdXAdd(${ii},'${s}')">+ ${s==="L"?"Left":"Right"} point</button>${it[s].length?`<button class="btn" onclick="rdXDel(${ii},'${s}')">− last</button>`:""}</div>`;
-  const card=(it,ii)=>it.k==="x"?`<div class="card" id="rlc${ii}"><div class="row" style="border:0;padding-top:0"><span><b>Section · ch</b> ${rin(`data-xc="${ii}"`,it.ch,"0")}</span><span class="note">setup ${k}</span></div>
+  const card=(it,ii)=>it.k==="x"?`<div class="card" id="rlc${ii}"><div class="row" style="border:0;padding-top:0"><span><b>Section · ch</b> ${rin(`data-xc="${ii}"`,it.ch,"0")}</span><span class="note">setup ${k}</span></div><div class="note" id="rpk${ii}" style="margin:-4px 0 4px"></div>
       <div class="row"><span><b>Centre line</b></span><span>${rin(`data-xl="${ii}"`,it.cl,"reading")} <small class="note" id="rlv_${ii}_C"></small></span></div>
       ${side(it,ii,"L")}${side(it,ii,"R")}
       <div class="btns"><button class="btn" onclick="rdLvDel(${ii})">Delete section</button></div></div>`
@@ -224,7 +224,8 @@ function renderRoadLv(){backTo="road";homeBtn.textContent="◀ Road";
   <div class="card"><h2>Start (setup 1)</h2>
     <div class="row"><span>BM / TBM</span><input class="pt" style="width:80px" id="rbm" value="${esc(V.bm)}" autocapitalize="characters" placeholder="TBM"></div>
     <div class="row"><span>RL of BM (m)</span><input class="cfgin" style="width:120px" inputmode="decimal" id="rrl" value="${esc(V.rl||"")}" placeholder="auto"></div><div id="rrlf"></div>
-    <div class="row"><span>BS on BM</span>${rin('id="rbs"',V.bs,"reading")}</div></div>
+    <div class="row"><span>BS on BM</span>${rin('id="rbs"',V.bs,"reading")}</div>
+    <div class="row"><span>L-section starts at ch</span>${rin('id="rch0"',V.ch0,"auto")}</div><div id="rch0f"></div></div>
   ${cards}
   <div class="btns" style="margin-bottom:10px"><button class="btn pri" onclick="rdLvAdd('x')">+ Section${(()=>{const n=rdNextCh();return n!=null?" (ch "+rdF(n,n%1?3:0)+")":""})()}</button><button class="btn" onclick="rdLvAdd('cp')">+ Change point</button></div>
   <div class="card"><h2>Check and closure</h2>
@@ -242,11 +243,24 @@ function renderRoadLv(){backTo="road";homeBtn.textContent="◀ Road";
   app.querySelectorAll('[data-cp][data-k="bs"]').forEach(el=>el.addEventListener("change",()=>renderRoadLv()));
   bind("#rbm",el=>{el.value=el.value.toUpperCase();V.bm=el.value.trim()});
   bind("#rrl",el=>{V.rl=el.value.replace(/[^\d.\-]/g,"")});bind("#rbs",el=>{clean(el);V.bs=el.value});
+  bind("#rch0",el=>{clean(el);V.ch0=el.value});app.querySelectorAll("#rch0,#rbm").forEach(el=>el.addEventListener("change",()=>renderRoadLv()));
   bind("#rcrl",el=>{V.closeRl=el.value.replace(/[^\d.\-]/g,"")});bind("#rk",el=>{clean(el);V.kKm=el.value});
   rdLvUpd()}
-function rdNextCh(){const C=rdCalc(),P=rdPegs(C,null),have=RD.lv.items.filter(it=>it.k==="x").map(it=>bNum(it.ch)).filter(x=>x!=null);
-  const last=have.length?Math.max(...have):-1;const n=P.find(q=>q.ch>last+0.0005&&!have.some(c=>Math.abs(c-q.ch)<0.05));
-  if(n)return Math.round(n.ch*1000)/1000;const step=bNum(RD.peg)||15;return last<0?0:Math.floor(last/step+1)*step}
+// a plain 15 m peg is covered by a section within ±3 m of it (field allows 43 or 47 for 45); BC, MC, EC and named points need the exact chainage
+function rdHave(){return RD.lv.items.filter(it=>it.k==="x").map(it=>bNum(it.ch)).filter(x=>x!=null)}
+function rdCovered(q,have){const tol=q.lab.length?0.05:RD_LIM.near+1e-6;return have.some(c=>Math.abs(c-q.ch)<=tol)}
+function rdPegAt(P,c){if(c==null)return null;let b=null;for(const q of P){const d=Math.abs(q.ch-c),tol=q.lab.length?0.05:RD_LIM.near+1e-6;if(d<=tol&&(!b||d<b.d))b={q,d}}return b}
+// where the L-section starts: typed chainage, else the chainage of the BM if it is an alignment point (e.g. bridge end A)
+function rdLvStart(C){const t=bNum(RD.lv.ch0);if(t!=null)return{ch:t,from:"typed"};const bm=(RD.lv.bm||"").trim().toUpperCase();if(!bm)return null;
+  if((RD.start.p||"").toUpperCase()===bm)return{ch:C.start,from:bm};const r=C.rows.find(r=>(r.ip.p||"").toUpperCase()===bm&&r.ch!=null);return r?{ch:r.ch,from:bm}:null}
+function rdNextCh(){const C=rdCalc(),P=rdPegs(C,null),have=rdHave(),st=rdLvStart(C),step=bNum(RD.peg)||15;
+  if(!have.length&&st)return Math.round(st.ch*1000)/1000;
+  const last=have.length?have[have.length-1]:null,prev=have.length>1?have[have.length-2]:st?st.ch:null;
+  const [bA,bB]=rdAxis(),away=st&&!have.slice(1).length?(()=>{const o=C.rows.find(r=>r.ip.p===(st.from===bA?bB:st.from===bB?bA:null));return o&&o.ch!=null&&o.ch>st.ch+0.01?-1:1})():1;
+  const dir=have.length>1?(last<prev-0.01?-1:1):away,base=last??(dir>0?C.start-1:Infinity);
+  const cand=P.filter(q=>(dir>0?q.ch>base+0.0005:q.ch<base-0.0005)&&!rdCovered(q,have)&&!(last!=null&&!q.lab.length&&Math.abs(q.ch-last)<=RD_LIM.near+1e-6));
+  const n=dir>0?cand[0]:cand[cand.length-1];if(n)return Math.round(n.ch*1000)/1000;
+  if(P.length)return null;if(last==null)return 0;return dir>0?Math.floor(last/step+1+1e-9)*step:Math.ceil(last/step-1-1e-9)*step}
 function rdLvAdd(t){const V=RD.lv;if(t==="x"){const c=rdNextCh();V.items.push({id:newId(),k:"x",ch:c!=null?String(c):"",cl:"",L:[{o:"5",r:""},{o:"10",r:""}],R:[{o:"5",r:""},{o:"10",r:""}]})}
   else{const n=V.items.filter(it=>it.k==="cp").length+1;V.items.push({id:newId(),k:"cp",p:"TP"+n,fs:"",bs:"",ch:""})}
   rdSave();renderRoadLv();setTimeout(()=>{const c=document.getElementById("rlc"+(V.items.length-1));if(c){c.scrollIntoView({block:"center"});const i=c.querySelector(t==="x"?"[data-xl]":'[data-k="fs"]');if(i)i.focus()}},50)}
@@ -257,6 +271,9 @@ function rdLvDel(ii){const it=RD.lv.items[ii];if(confirm(it.k==="x"?`Delete the 
 function rdLvUpd(){const L=rdLvCalc(),C=rdCalc(),P=rdPegs(C,null);
   L.rows.forEach(r=>{if(r.t==="is"){const el=document.getElementById(`rlv_${r.ii}_${r.side}${r.side==="C"?"":r.j}`);if(el)el.textContent=r.rl!=null?"RL "+r.rl.toFixed(3):""}
     else if(r.t==="cp"){const el=document.getElementById(`rlv_${r.ii}_cp`);if(el)el.innerHTML=r.rl!=null?pill(r.bs==null?"warn":"ok","RL "+r.rl.toFixed(3)):""}});
+  RD.lv.items.forEach((it,ii)=>{if(it.k!=="x")return;const el=document.getElementById("rpk"+ii);if(!el)return;const c=bNum(it.ch);if(c==null){el.textContent="";return}
+    const m=rdPegAt(P,c);el.textContent=m?(m.q.lab.length?m.q.lab.join(" / ")+" · "+rdChTxt(m.q.ch):"peg "+rdF(m.q.ch,0)+(m.d>0.05?` (${(c-m.q.ch>0?"+":"−")+Math.abs(c-m.q.ch).toFixed(1)} m off, OK within ${RD_LIM.near} m)`:""))+(m.q.cv&&!m.q.lab.length?" · on curve "+m.q.cv.n:""):P.length?"extra point (slope break)":rdChTxt(c)});
+  {const st=rdLvStart(C),e=document.getElementById("rch0f");if(e)e.innerHTML=bNum(RD.lv.ch0)==null?(st?`<p class="note">Starting at ch ${rdF(st.ch)} (chainage of ${esc(st.from)} on the alignment). Type to override.</p>`:`<p class="note">Type the chainage of the first section, or name an alignment point (e.g. A) as the BM.</p>`):""}
   const f=document.getElementById("rrlf");if(f)f.innerHTML=num(RD.lv.rl)==null?(L.rl0!=null?`<p class="note">Using ${L.rl0.toFixed(3)} from “${esc(L.from)}” (same name). Type to override.</p>`:`<p class="note">No job has an RL for “${esc(RD.lv.bm||"?")}”. Type it.</p>`):"";
   const g=document.getElementById("rcrf");if(g)g.innerHTML=num(RD.lv.closeRl)==null&&L.closed?(L.known!=null?`<p class="note">${esc(L.endP||"")}: ${L.known.toFixed(3)} from “${esc(L.kFrom)}”.</p>`:`<p class="note">No job has an RL for “${esc(L.endP||"?")}”. Type it to get the closing error.</p>`):"";
   const res=document.getElementById("rlres");if(res)res.innerHTML=`
@@ -301,7 +318,7 @@ function rdClear(){if(prompt("Type DELETE to clear all road data on this phone. 
 function rdMerge(src){if(!src||!Array.isArray(src.ips))return 0;let n=0;
   for(const x of src.ips){const y=RD.ips.find(z=>z.id===x.id);if(!y){RD.ips.push(x);n++;continue}for(const k of["d","R"])if(bNum(x[k])!=null&&bNum(y[k])==null){y[k]=x[k];n++}if(bDeg(x.a)!=null&&bDeg(y.a)==null){y.a=x.a;n++}}
   if(src.lv)for(const x of src.lv.items||[]){if(!RD.lv.items.some(z=>z.id===x.id)){RD.lv.items.push(x);n++}}
-  if(src.lv)for(const k of["bm","rl","bs","closeRl","kKm"])if(!RD.lv[k]&&src.lv[k])RD.lv[k]=src.lv[k];
+  if(src.lv)for(const k of["bm","rl","bs","ch0","closeRl","kKm"])if(!RD.lv[k]&&src.lv[k])RD.lv[k]=src.lv[k];
   if(src.start&&bDeg(RD.start.brg)==null&&bDeg(src.start.brg)!=null)RD.start=src.start;
   rdSave();return n}
 function rdCSV(csv){if(!RD.ips.length&&!RD.lv.items.length)return "";const C=rdCalc(),G=rdGeom(C),P=rdPegs(C,G),L=rdLvCalc();let o="";
