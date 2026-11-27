@@ -208,15 +208,16 @@ function renderRoadLv(){backTo="road";homeBtn.textContent="◀ Road";
   title.innerHTML="L-section · X-section<small>HI method · ±24√K · 0.6–3.0 m turning points</small>";
   const V=RD.lv;let k=1;
   const rin=(a,v,ph)=>`<input class="cfgin" style="width:86px" inputmode="decimal" ${a} value="${esc(v||"")}" placeholder="${ph||""}">`;
-  const side=(it,ii,s)=>`${it[s].map((q,j)=>`<div class="row"><span>${s==="L"?"Left":"Right"} ${rin(`data-xo="${ii}" data-s="${s}" data-j="${j}"`,q.o,"m")} m</span><span>${rin(`data-xr="${ii}" data-s="${s}" data-j="${j}"`,q.r,"reading")} <small class="note" id="rlv_${ii}_${s}${j}"></small></span></div>`).join("")}
+  const rbx=(a,v)=>`<div class="tmb"><input inputmode="decimal" enterkeyhint="next" placeholder="M" ${a} value="${esc(v||"")}"></div>`;
+  const side=(it,ii,s)=>`${it[s].map((q,j)=>`<div class="obs"><label><b>${s}</b> <input class="cfgin" style="width:54px" inputmode="decimal" data-xo="${ii}" data-s="${s}" data-j="${j}" value="${esc(q.o||"")}" placeholder="m"> m <small class="note" id="rlv_${ii}_${s}${j}"></small></label>${rbx(`data-xr="${ii}" data-s="${s}" data-j="${j}"`,q.r)}</div>`).join("")}
     <div class="btns" style="margin:2px 0 6px"><button class="btn" onclick="rdXAdd(${ii},'${s}')">+ ${s==="L"?"Left":"Right"} point</button>${it[s].length?`<button class="btn" onclick="rdXDel(${ii},'${s}')">− last</button>`:""}</div>`;
-  const card=(it,ii)=>it.k==="x"?`<div class="card" id="rlc${ii}"><div class="row" style="border:0;padding-top:0"><span><b>Section · ch</b> ${rin(`data-xc="${ii}"`,it.ch,"0")}</span><span class="note">setup ${k}</span></div><div class="note" id="rpk${ii}" style="margin:-4px 0 4px"></div>
-      <div class="row"><span><b>Centre line</b></span><span>${rin(`data-xl="${ii}"`,it.cl,"reading")} <small class="note" id="rlv_${ii}_C"></small></span></div>
+  const card=(it,ii)=>it.k==="x"?`<div class="card" id="rlc${ii}"><div class="row" style="border:0;padding-top:0"><span><b>Section · ch</b> ${rin(`data-xc="${ii}"`,it.ch,"0").replace("width:86px","width:104px")}</span><span class="note">setup ${k}</span></div><div class="note" id="rpk${ii}" style="margin:-4px 0 4px"></div>
+      <div class="obs"><label><b>CL</b> centre line <small class="note" id="rlv_${ii}_C"></small></label>${rbx(`data-xl="${ii}"`,it.cl)}</div>
       ${side(it,ii,"L")}${side(it,ii,"R")}
       <div class="btns"><button class="btn" onclick="rdLvDel(${ii})">Delete section</button></div></div>`
     :`<div class="card" id="rlc${ii}"><div class="row" style="border:0;padding-top:0"><span><b>Change point</b> <input class="pt" style="width:70px" data-cp="${ii}" data-k="p" value="${esc(it.p)}" autocapitalize="characters"></span><span id="rlv_${ii}_cp"></span></div>
-      <div class="row"><span>FS (setup ${k})</span>${rin(`data-cp="${ii}" data-k="fs"`,it.fs,"reading")}</div>
-      <div class="row"><span>BS (setup ${k+1}) · empty = close here</span>${rin(`data-cp="${ii}" data-k="bs"`,it.bs,"reading")}</div>
+      <div class="obs"><label><b>FS</b> setup ${k}</label>${rbx(`data-cp="${ii}" data-k="fs"`,it.fs)}</div>
+      <div class="obs"><label><b>BS</b> setup ${k+1} · empty = close here</label>${rbx(`data-cp="${ii}" data-k="bs"`,it.bs)}</div>
       <div class="row"><span>On centre line at ch (optional)</span>${rin(`data-cp="${ii}" data-k="ch"`,it.ch,"")}</div>
       <div class="btns"><button class="btn" onclick="rdLvDel(${ii})">Delete</button></div></div>`;
   const cards=V.items.map((it,ii)=>{const h=card(it,ii);if(it.k==="cp"&&rd(it.bs)!=null)k++;return h}).join("");
@@ -224,7 +225,7 @@ function renderRoadLv(){backTo="road";homeBtn.textContent="◀ Road";
   <div class="card"><h2>Start (setup 1)</h2>
     <div class="row"><span>BM / TBM</span><input class="pt" style="width:80px" id="rbm" value="${esc(V.bm)}" autocapitalize="characters" placeholder="TBM"></div>
     <div class="row"><span>RL of BM (m)</span><input class="cfgin" style="width:120px" inputmode="decimal" id="rrl" value="${esc(V.rl||"")}" placeholder="auto"></div><div id="rrlf"></div>
-    <div class="row"><span>BS on BM</span>${rin('id="rbs"',V.bs,"reading")}</div>
+    <div class="obs"><label><b>BS</b> → BM</label>${rbx('id="rbs"',V.bs)}</div>
     <div class="row"><span>L-section starts at ch</span>${rin('id="rch0"',V.ch0,"auto")}</div><div id="rch0f"></div></div>
   ${cards}
   <div class="btns" style="margin-bottom:10px"><button class="btn pri" onclick="rdLvAdd('x')">+ Section${(()=>{const n=rdNextCh();return n!=null?" (ch "+rdF(n,n%1?3:0)+")":""})()}</button><button class="btn" onclick="rdLvAdd('cp')">+ Change point</button></div>
@@ -242,9 +243,11 @@ function renderRoadLv(){backTo="road";homeBtn.textContent="◀ Road";
   bind("[data-cp]",el=>{const it=V.items[+el.dataset.cp],key=el.dataset.k;if(key==="p"){el.value=el.value.toUpperCase();it.p=el.value.trim()}else{clean(el);it[key]=el.value}});
   app.querySelectorAll('[data-cp][data-k="bs"]').forEach(el=>el.addEventListener("change",()=>renderRoadLv()));
   // after a reading with 3 decimals (1.524), jump to the next reading box
-  const RDS=Array.from(app.querySelectorAll('#rbs,[data-xl],[data-xr],[data-cp][data-k="fs"],[data-cp][data-k="bs"]'));RDS.forEach((el,i)=>{el.dataset.rdi=i;el.setAttribute("enterkeyhint","next")});
-  RDS.forEach((el,i)=>el.addEventListener("input",()=>{if(!/^\d+\.\d{3}$/.test(el.value)||i+1>=RDS.length)return;const sel=`[data-rdi="${i+1}"]`;RDS[i+1].focus();
-    const t=app.querySelector(sel);if(t&&document.activeElement!==t)t.focus();if(t)t.scrollIntoView({block:"center"})}));
+  const RDS=Array.from(app.querySelectorAll('#rbs,[data-xl],[data-xr],[data-cp][data-k="fs"],[data-cp][data-k="bs"]'));RDS.forEach((el,i)=>{el.dataset.rdi=i});
+  RDS.forEach((el,i)=>{const next=()=>{if(i+1>=RDS.length){el.blur();return}const sel=`[data-rdi="${i+1}"]`;RDS[i+1].focus();
+      const t=app.querySelector(sel);if(t){if(document.activeElement!==t)t.focus();t.select();t.scrollIntoView({block:"center"})}};
+    el.addEventListener("input",()=>{el.classList.toggle("err",el.value!==""&&rd(el.value)==null);if(/^\d\.\d{3}$/.test(el.value)||/^\d{4}$/.test(el.value))next()});
+    el.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();next()}})});
   bind("#rbm",el=>{el.value=el.value.toUpperCase();V.bm=el.value.trim()});
   bind("#rrl",el=>{V.rl=el.value.replace(/[^\d.\-]/g,"")});bind("#rbs",el=>{clean(el);V.bs=el.value});
   bind("#rch0",el=>{clean(el);V.ch0=el.value});app.querySelectorAll("#rch0,#rbm").forEach(el=>el.addEventListener("change",()=>renderRoadLv()));
