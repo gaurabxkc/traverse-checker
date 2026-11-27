@@ -97,7 +97,7 @@ function rdLvIssues(L,pegs){const o=[];
   const cl=L.rows.filter(r=>r.t==="is"&&r.side==="C"&&r.ch!=null&&r.crl!=null).sort((a,b)=>a.ch-b.ch);
   for(let i=1;i<cl.length;i++){const dc=cl[i].ch-cl[i-1].ch;if(dc>0.5){const g=(cl[i].crl-cl[i-1].crl)/dc*100;if(Math.abs(g)>RD_LIM.grade)o.push(`Ground grade ${g.toFixed(1)}% between ch ${rdF(cl[i-1].ch,1)} and ${rdF(cl[i].ch,1)} (> ${RD_LIM.grade}%: check the alignment)`)}}
   if(pegs&&pegs.length){const have=rdHave();if(have.length){const lo=Math.min(...have),hi=Math.max(...have);
-    const miss=pegs.filter(q=>q.ch>=lo-1e-6&&q.ch<=hi+1e-6&&!rdCovered(q,have)).map(q=>rdF(q.ch,q.ch%1?3:0));if(miss.length)o.push(`No section yet at ch ${miss.join(", ")}`)}}
+    const miss=rdLvPegs(pegs).filter(q=>q.ch>=lo-1e-6&&q.ch<=hi+1e-6&&!rdCovered(q,have)).map(q=>rdF(q.ch,q.ch%1?3:0));if(miss.length)o.push(`No section yet at ch ${miss.join(", ")}`)}}
   return o}
 function rdIssues(){const C=rdCalc();const o=[];C.rows.forEach(r=>r.w.forEach(([s,t])=>{if(s==="bad")o.push(`${r.ip.p||"IP"}: ${t}`)}));return o}
 
@@ -232,7 +232,7 @@ function renderRoadLv(){backTo="road";homeBtn.textContent="◀ Road";
     <div class="row"><span>RL of closing point (m)</span><input class="cfgin" style="width:120px" inputmode="decimal" id="rcrl" value="${esc(V.closeRl||"")}" placeholder="auto"></div><div id="rcrf"></div>
     <div class="row"><span>K (km)</span>${rin('id="rk"',V.kKm,"auto")}</div>
     <div id="rlres"></div>
-    <p class="note">Close on a point with a known RL (bridge end ${esc(rdAxis()[0])}, or back on the BM). Readings in metres (1.524) or mm (1524). Offsets: 5 m apart, at least 10 m each side, plus slope breaks.</p></div>`;
+    <p class="note">Inside a curve, sections only at BC, MC and EC. Close on a point with a known RL (bridge end ${esc(rdAxis()[0])}, or back on the BM). Readings in metres (1.524) or mm (1524). Offsets: 5 m apart, at least 10 m each side, plus slope breaks.</p></div>`;
   const bind=(sel,fn)=>app.querySelectorAll(sel).forEach(el=>{el.addEventListener("input",()=>{fn(el);rdSave();rdLvUpd()});el.addEventListener("focus",()=>el.select())});
   const clean=el=>el.value=el.value.replace(/[^\d.]/g,"");
   bind("[data-xc]",el=>{clean(el);V.items[+el.dataset.xc].ch=el.value});
@@ -247,6 +247,8 @@ function renderRoadLv(){backTo="road";homeBtn.textContent="◀ Road";
   bind("#rcrl",el=>{V.closeRl=el.value.replace(/[^\d.\-]/g,"")});bind("#rk",el=>{clean(el);V.kKm=el.value});
   rdLvUpd()}
 // a plain 15 m peg is covered by a section within ±3 m of it (field allows 43 or 47 for 45); BC, MC, EC and named points need the exact chainage
+// L-section inside a curve only at BC, MC, EC (plain 15 m pegs on the curve are skipped)
+function rdLvPegs(P){return P.filter(q=>q.lab.length||!q.cv)}
 function rdHave(){return RD.lv.items.filter(it=>it.k==="x").map(it=>bNum(it.ch)).filter(x=>x!=null)}
 function rdCovered(q,have){const tol=q.lab.length?0.05:RD_LIM.near+1e-6;return have.some(c=>Math.abs(c-q.ch)<=tol)}
 function rdPegAt(P,c){if(c==null)return null;let b=null;for(const q of P){const d=Math.abs(q.ch-c),tol=q.lab.length?0.05:RD_LIM.near+1e-6;if(d<=tol&&(!b||d<b.d))b={q,d}}return b}
@@ -258,7 +260,7 @@ function rdNextCh(){const C=rdCalc(),P=rdPegs(C,null),have=rdHave(),st=rdLvStart
   const last=have.length?have[have.length-1]:null,prev=have.length>1?have[have.length-2]:st?st.ch:null;
   const [bA,bB]=rdAxis(),away=st&&!have.slice(1).length?(()=>{const o=C.rows.find(r=>r.ip.p===(st.from===bA?bB:st.from===bB?bA:null));return o&&o.ch!=null&&o.ch>st.ch+0.01?-1:1})():1;
   const dir=have.length>1?(last<prev-0.01?-1:1):away,base=last??(dir>0?C.start-1:Infinity);
-  const cand=P.filter(q=>(dir>0?q.ch>base+0.0005:q.ch<base-0.0005)&&!rdCovered(q,have)&&!(last!=null&&!q.lab.length&&Math.abs(q.ch-last)<=RD_LIM.near+1e-6));
+  const cand=rdLvPegs(P).filter(q=>(dir>0?q.ch>base+0.0005:q.ch<base-0.0005)&&!rdCovered(q,have)&&!(last!=null&&!q.lab.length&&Math.abs(q.ch-last)<=RD_LIM.near+1e-6));
   const n=dir>0?cand[0]:cand[cand.length-1];if(n)return Math.round(n.ch*1000)/1000;
   if(P.length)return null;if(last==null)return 0;return dir>0?Math.floor(last/step+1+1e-9)*step:Math.ceil(last/step-1-1e-9)*step}
 function rdLvAdd(t){const V=RD.lv;if(t==="x"){const c=rdNextCh();V.items.push({id:newId(),k:"x",ch:c!=null?String(c):"",cl:"",L:[{o:"5",r:""},{o:"10",r:""}],R:[{o:"5",r:""},{o:"10",r:""}]})}
