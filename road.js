@@ -92,7 +92,10 @@ function rdLvCalc(){const V=RD.lv;let rl0=num(V.rl),from=rl0!=null?"typed":null;
 function rdLvIssues(L,pegs){const o=[];
   L.rows.forEach(r=>{if(r.t!=="cp")return;for(const [k,v] of[["FS",r.fs],["BS",r.bs]])if(v!=null&&(v<RD_LIM.lo-1e-9||v>RD_LIM.hi+1e-9))o.push(`${r.p||"change point"}: ${k} ${v.toFixed(3)} outside ${RD_LIM.lo}–${RD_LIM.hi} m (turning point rule)`)});
   if(L.ok===false)o.push(`Closing error ${L.errMm} mm exceeds ±${L.perm.toFixed(1)} mm`);
-  RD.lv.items.forEach(it=>{if(it.k!=="x"||bNum(it.ch)==null)return;const mx=a=>Math.max(0,...a.filter(q=>rd(q.r)!=null).map(q=>bNum(q.o)||0));
+  RD.lv.items.forEach(it=>{if(it.k!=="x"||bNum(it.ch)==null)return;
+    // centre line only, away from any peg (culvert start/end, slope break): L-section point, no cross section needed
+    const hasX=t=>t.L.concat(t.R).some(q=>rd(q.r)!=null);
+    if(rd(it.cl)!=null&&!hasX(it)){const m=pegs&&rdPegAt(pegs,bNum(it.ch));if(!m||rdCovered(m.q,RD.lv.items.filter(t=>t!==it&&t.k==="x"&&hasX(t)).map(t=>bNum(t.ch)).filter(x=>x!=null)))return}const mx=a=>Math.max(0,...a.filter(q=>rd(q.r)!=null).map(q=>bNum(q.o)||0));
     if(mx(it.L)<RD_LIM.xs-1e-9||mx(it.R)<RD_LIM.xs-1e-9)o.push(`Ch ${rdF(bNum(it.ch))}: cross section must reach ${RD_LIM.xs} m each side (L ${mx(it.L)} m, R ${mx(it.R)} m)`)});
   const cl=L.rows.filter(r=>r.t==="is"&&r.side==="C"&&r.ch!=null&&r.crl!=null).sort((a,b)=>a.ch-b.ch);
   for(let i=1;i<cl.length;i++){const dc=cl[i].ch-cl[i-1].ch;if(dc>0.5){const g=(cl[i].crl-cl[i-1].crl)/dc*100;if(Math.abs(g)>RD_LIM.grade)o.push(`Ground grade ${g.toFixed(1)}% between ch ${rdF(cl[i-1].ch,1)} and ${rdF(cl[i].ch,1)} (> ${RD_LIM.grade}%: check the alignment)`)}}
@@ -281,7 +284,7 @@ function rdLvUpd(){const L=rdLvCalc(),C=rdCalc(),P=rdPegs(C,null);
   L.rows.forEach(r=>{if(r.t==="is"){const el=document.getElementById(`rlv_${r.ii}_${r.side}${r.side==="C"?"":r.j}`);if(el)el.textContent=r.rl!=null?"RL "+r.rl.toFixed(3):""}
     else if(r.t==="cp"){const el=document.getElementById(`rlv_${r.ii}_cp`);if(el)el.innerHTML=r.rl!=null?pill(r.bs==null?"warn":"ok","RL "+r.rl.toFixed(3)):""}});
   RD.lv.items.forEach((it,ii)=>{if(it.k!=="x")return;const el=document.getElementById("rpk"+ii);if(!el)return;const c=bNum(it.ch);if(c==null){el.textContent="";return}
-    const m=rdPegAt(P,c);el.textContent=m?(m.q.lab.length?m.q.lab.join(" / ")+" · "+rdChTxt(m.q.ch):"peg "+rdF(m.q.ch,0)+(m.d>0.05?` (${(c-m.q.ch>0?"+":"−")+Math.abs(c-m.q.ch).toFixed(1)} m off, OK within ${RD_LIM.near} m)`:""))+(m.q.cv&&!m.q.lab.length?" · on curve "+m.q.cv.n:""):P.length?"extra point (slope break)":rdChTxt(c)});
+    const m=rdPegAt(P,c);el.textContent=m?(m.q.lab.length?m.q.lab.join(" / ")+" · "+rdChTxt(m.q.ch):"peg "+rdF(m.q.ch,0)+(m.d>0.05?` (${(c-m.q.ch>0?"+":"−")+Math.abs(c-m.q.ch).toFixed(1)} m off, OK within ${RD_LIM.near} m)`:""))+(m.q.cv&&!m.q.lab.length?" · on curve "+m.q.cv.n:""):P.length?(it.L.concat(it.R).some(q=>rd(q.r)!=null)?"extra section (culvert, slope break)":"L-section point only (culvert end, slope break)"):rdChTxt(c)});
   {const st=rdLvStart(C),e=document.getElementById("rch0f");if(e)e.innerHTML=bNum(RD.lv.ch0)==null?(st?`<p class="note">Starting at ch ${rdF(st.ch)} (chainage of ${esc(st.from)} on the alignment). Type to override.</p>`:`<p class="note">Type the chainage of the first section, or name an alignment point (e.g. A) as the BM.</p>`):""}
   const f=document.getElementById("rrlf");if(f)f.innerHTML=num(RD.lv.rl)==null?(L.rl0!=null?`<p class="note">Using ${L.rl0.toFixed(3)} from “${esc(L.from)}” (same name). Type to override.</p>`:`<p class="note">No job has an RL for “${esc(RD.lv.bm||"?")}”. Type it.</p>`):"";
   const g=document.getElementById("rcrf");if(g)g.innerHTML=num(RD.lv.closeRl)==null&&L.closed?(L.known!=null?`<p class="note">${esc(L.endP||"")}: ${L.known.toFixed(3)} from “${esc(L.kFrom)}”.</p>`:`<p class="note">No job has an RL for “${esc(L.endP||"?")}”. Type it to get the closing error.</p>`):"";
