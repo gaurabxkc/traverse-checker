@@ -83,7 +83,7 @@ function rdLvCalc(){const V=RD.lv;let rl0=num(V.rl),from=rl0!=null?"typed":null;
   const nS=rows.filter(r=>r.t==="cp"&&r.fs!=null).length,closed=end!=null&&rows[rows.length-1].t==="cp"&&rows[rows.length-1].bs==null;
   let known=num(V.closeRl),kFrom=known!=null?"typed":null;if(known==null&&closed&&endP&&typeof knownRL==="function"){const k=knownRL(String(endP).trim());if(k){known=k.rl;kFrom=k.line}}
   const chs=rows.filter(r=>r.ch!=null).map(r=>r.ch),span=chs.length>1?Math.max(...chs)-Math.min(...chs):null;
-  const K=num(V.kKm)??(span!=null?span/1000:null),perm=K?RD_LIM.k*Math.sqrt(K):null,e=closed&&known!=null?end-known:null;
+  const loop=closed&&endP&&V.bm&&String(endP).trim().toUpperCase()===V.bm.trim().toUpperCase(),K=num(V.kKm)??(span!=null?span/1000*(loop?2:1):null),perm=K?RD_LIM.k*Math.sqrt(K):null,e=closed&&known!=null?end-known:null;
   // correction (template): change point ending setup k gets −e·k/N; intermediate sights of setup k get −e·(k−1)/N
   rows.forEach(r=>{r.corr=e==null||!nS?null:r.t==="bm"?0:r.t==="cp"?-e*r.k/nS:-e*(r.k-1)/nS;r.crl=r.rl!=null?r3(r.rl+(r.corr||0)):null});
   const errMm=e!=null?Math.round(e*1000):null;
